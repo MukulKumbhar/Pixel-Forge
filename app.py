@@ -156,6 +156,10 @@ def main():
             chosen = st.session_state.get("preset_dropdown_choice")
             if chosen and chosen != "-- Select Preset --":
                 load_preset(chosen)
+                if st.session_state.get("active_layer_stack"):
+                    first_id = st.session_state.active_layer_stack[0]["id"]
+                    st.session_state.selected_layer_id = first_id
+                    st.session_state["param_active_stage_select"] = first_id
                 st.session_state["preset_dropdown_choice"] = "-- Select Preset --"
 
         st.selectbox(
@@ -170,6 +174,13 @@ def main():
 
         # Render active layers list
         stack = st.session_state.active_layer_stack
+
+        def _on_toggle_layer_cb(lid: str, w_key: str):
+            new_state = st.session_state.get(w_key, True)
+            for l in st.session_state.get("active_layer_stack", []):
+                if l["id"] == lid:
+                    l["enabled"] = new_state
+                    break
 
         if not stack:
             st.info("Pipeline is empty. Open the **Filter Catalog** expander in the workspace or choose a preset above to begin.")
@@ -207,10 +218,10 @@ def main():
                     c_toggle, c_up, c_down, c_gear, c_del = st.columns([1, 1, 1, 1, 1])
 
                     with c_toggle:
-                        chk = st.checkbox("Active", value=is_enabled, key=f"layer_chk_{layer_id}", label_visibility="collapsed")
-                        if chk != is_enabled:
-                            toggle_layer_enabled(layer_id)
-                            st.rerun()
+                        chk_key = f"layer_chk_{layer_id}"
+                        if chk_key not in st.session_state:
+                            st.session_state[chk_key] = is_enabled
+                        st.checkbox("Active", key=chk_key, label_visibility="collapsed", on_change=_on_toggle_layer_cb, args=(layer_id, chk_key))
 
                     with c_up:
                         if st.button("▲", key=f"btn_up_{layer_id}", disabled=(idx == 0)):
@@ -225,17 +236,24 @@ def main():
                     with c_gear:
                         btn_label = "⚙️" if not is_selected else "★"
                         if st.button(btn_label, key=f"btn_gear_{layer_id}", help="Tweak stage parameters"):
-                            st.session_state.selected_layer_id = layer_id if not is_selected else None
+                            target_id = layer_id if not is_selected else None
+                            st.session_state.selected_layer_id = target_id
+                            if target_id:
+                                st.session_state["param_active_stage_select"] = target_id
                             st.rerun()
 
                     with c_del:
                         if st.button("✕", key=f"btn_del_{layer_id}", help="Delete stage"):
                             remove_layer(layer_id)
+                            if st.session_state.get("selected_layer_id") == layer_id:
+                                st.session_state.selected_layer_id = None
+                                st.session_state.pop("param_active_stage_select", None)
                             st.rerun()
 
             st.write("")
             if st.button("Clear All Stages", use_container_width=True, type="secondary"):
                 clear_layer_stack()
+                st.session_state.pop("param_active_stage_select", None)
                 st.rerun()
 
     # -------------------------------------------------------------

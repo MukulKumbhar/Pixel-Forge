@@ -2,10 +2,11 @@
 Pixel-Forge - Parameter Adjustment Drawer & Filter Catalog Studio
 Provides:
 1. Filter Catalog browser (Select Domain & Select Algorithm with live preview and 1-click addition).
-2. Parameter drawer (stage switcher, micro-info card, hot-swapping, auto-convert, synchronized sliders & steppers).
+2. Parameter drawer (stage switcher, micro-info card, hot-swapping, auto-convert, high-precision sliders).
+All controls use native Streamlit on_change event callbacks to guarantee zero-flicker, loop-free execution.
 """
 
-from typing import Optional
+from typing import Any, Optional
 import streamlit as st
 from algorithms.registry import ALGORITHM_REGISTRY, DOMAINS
 from core.state_manager import (
@@ -15,6 +16,63 @@ from core.state_manager import (
     swap_layer_algorithm,
     update_layer_parameter,
 )
+
+
+def _on_catalog_domain_change():
+    """Synchronizes algorithm dropdown when the user changes domain."""
+    domain = st.session_state.get("catalog_sel_domain")
+    if domain:
+        domain_algos = [k for k, v in ALGORITHM_REGISTRY.items() if v.get("domain") == domain]
+        if domain_algos:
+            st.session_state["catalog_sel_algo"] = domain_algos[0]
+
+
+def _on_stage_select():
+    """Synchronizes selected_layer_id when the user changes stage in the dropdown."""
+    chosen = st.session_state.get("param_active_stage_select")
+    if chosen:
+        st.session_state.selected_layer_id = chosen
+
+
+def _on_autoconvert_change(layer_id: str, widget_key: str):
+    """Toggles auto-convert shim for a layer without manual rerun."""
+    new_val = st.session_state.get(widget_key, True)
+    _push_history()
+    for layer in st.session_state.get("active_layer_stack", []):
+        if layer["id"] == layer_id:
+            layer["auto_convert"] = new_val
+            break
+
+
+def _on_hotswap_change(layer_id: str, widget_key: str):
+    """Hot-swaps target layer algorithm in-place without manual rerun."""
+    new_algo = st.session_state.get(widget_key)
+    if new_algo:
+        swap_layer_algorithm(layer_id, new_algo)
+        # Update widget session keys for the new algorithm's defaults
+        meta = ALGORITHM_REGISTRY.get(new_algo, {})
+        for p_k, p_v in meta.get("params", {}).items():
+            w_key = f"param_{layer_id}_{p_k}"
+            st.session_state[w_key] = p_v["default"]
+
+
+def _on_param_change(layer_id: str, p_name: str, widget_key: str, p_type: str = "float", odd: bool = False):
+    """
+    Native Streamlit on_change callback.
+    Executes BEFORE the script reruns. Directly updates the in-memory parameter
+    on the target layer without ever invoking st.rerun().
+    """
+    if widget_key not in st.session_state:
+        return
+    val = st.session_state[widget_key]
+    if p_type == "int":
+        val = int(val)
+        if odd and val % 2 == 0:
+            val += 1
+            st.session_state[widget_key] = val
+    elif p_type == "float":
+        val = float(val)
+    update_layer_parameter(layer_id, p_name, val)
 
 
 def render_filter_catalog():
@@ -31,7 +89,8 @@ def render_filter_catalog():
             "Select Domain / Category",
             options=domain_keys,
             format_func=lambda d: DOMAINS[d].get("title", DOMAINS[d].get("name", str(d))),
-            key="catalog_sel_domain"
+            key="catalog_sel_domain",
+            on_change=_on_catalog_domain_change
         )
         domain_info = DOMAINS.get(sel_domain, {})
         st.caption(f"📁 **{domain_info.get('unit', '')}**: {domain_info.get('description', '')}")
@@ -42,9 +101,13 @@ def render_filter_catalog():
             for k, v in ALGORITHM_REGISTRY.items()
             if v.get("domain") == sel_domain
         }
+        domain_algo_keys = list(domain_algos.keys())
+        if st.session_state.get("catalog_sel_algo") not in domain_algo_keys and domain_algo_keys:
+            st.session_state["catalog_sel_algo"] = domain_algo_keys[0]
+
         sel_algo = st.selectbox(
             "Select Algorithm",
-            options=list(domain_algos.keys()),
+            options=domain_algo_keys,
             format_func=lambda k: domain_algos[k],
             key="catalog_sel_algo"
         )
@@ -84,6 +147,11 @@ def render_filter_catalog():
         )
         if st.button("➕ Add to Pipeline Stack", key=f"btn_add_algo_{sel_algo}", use_container_width=True, type="primary"):
             add_layer_to_stack(sel_algo)
+            # Sync stage selector to newly added layer
+            if st.session_state.active_layer_stack:
+                new_id = st.session_state.active_layer_stack[-1]["id"]
+                st.session_state.selected_layer_id = new_id
+                st.session_state["param_active_stage_select"] = new_id
             st.rerun()
 
 
@@ -91,7 +159,8 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
     """
     Renders active filter parameter controls and fine-tuning.
     Provides stage selector, algorithm hot-swapping, auto-convert toggling,
-    and synchronized sliders and steppers.
+    and high-precision parameter sliders.
+    All inputs use on_change callbacks with zero loop/rerun jitter.
     """
     stack = st.session_state.get("active_layer_stack", [])
     if not stack:
@@ -104,21 +173,21 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
         selected_layer_id = stack[-1]["id"]
         st.session_state.selected_layer_id = selected_layer_id
 
-    # Layer selector to quickly switch which stage to edit
+    # Strictly keep the selectbox widget key synchronized with selected_layer_id
+    if st.session_state.get("param_active_stage_select") not in layer_ids or st.session_state.get("param_active_stage_select") != selected_layer_id:
+        st.session_state["param_active_stage_select"] = selected_layer_id
+
     layer_map = {l["id"]: f"Stage {i+1}: {l['name']}" for i, l in enumerate(stack)}
 
     col_sel, col_bridge, col_reset = st.columns([2.5, 1.3, 1])
     with col_sel:
-        chosen_layer_id = st.selectbox(
+        st.selectbox(
             "Select Active Stage to Edit",
             options=layer_ids,
             format_func=lambda lid: layer_map.get(lid, lid),
-            index=layer_ids.index(selected_layer_id),
-            key="param_active_stage_select"
+            key="param_active_stage_select",
+            on_change=_on_stage_select
         )
-        if chosen_layer_id != selected_layer_id:
-            st.session_state.selected_layer_id = chosen_layer_id
-            st.rerun()
 
     # Find active layer
     layer = next((l for l in stack if l["id"] == st.session_state.selected_layer_id), stack[-1])
@@ -128,16 +197,16 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
     domain_info = DOMAINS.get(domain_key, {})
 
     with col_bridge:
-        auto_c = st.toggle(
+        ac_key = f"autoconvert_{layer['id']}"
+        if ac_key not in st.session_state:
+            st.session_state[ac_key] = layer.get("auto_convert", True)
+        st.toggle(
             "Auto-Convert Shims",
-            value=layer.get("auto_convert", True),
-            key=f"autoconvert_{layer['id']}",
+            key=ac_key,
+            on_change=_on_autoconvert_change,
+            args=(layer["id"], ac_key),
             help="Automatically bridges tensor format mismatches (e.g. RGB to Grayscale/Binary)"
         )
-        if auto_c != layer.get("auto_convert", True):
-            _push_history()
-            layer["auto_convert"] = auto_c
-            st.rerun()
 
     with col_reset:
         st.write("")
@@ -145,6 +214,9 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
             _push_history()
             param_specs = meta.get("params", {})
             layer["params"] = {p_k: p_v["default"] for p_k, p_v in param_specs.items()}
+            # Reconcile widget keys so UI reflects defaults immediately
+            for p_k, p_v in param_specs.items():
+                st.session_state[f"param_{layer['id']}_{p_k}"] = p_v["default"]
             st.rerun()
 
     # Micro-info card for active filter
@@ -169,16 +241,17 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
     if algo_key in domain_algos:
         hs_col1, hs_col2 = st.columns([2, 1])
         with hs_col1:
-            new_algo = st.selectbox(
+            hs_key = f"hotswap_{layer['id']}"
+            if hs_key not in st.session_state or st.session_state[hs_key] not in domain_algos:
+                st.session_state[hs_key] = algo_key
+            st.selectbox(
                 "Hot-Swap Algorithm within Domain",
                 options=list(domain_algos.keys()),
                 format_func=lambda k: domain_algos[k],
-                index=list(domain_algos.keys()).index(algo_key),
-                key=f"hotswap_{layer['id']}"
+                key=hs_key,
+                on_change=_on_hotswap_change,
+                args=(layer["id"], hs_key)
             )
-            if new_algo != algo_key:
-                swap_layer_algorithm(layer["id"], new_algo)
-                st.rerun()
         with hs_col2:
             st.markdown(
                 f"""
@@ -193,7 +266,7 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
 
     st.divider()
 
-    # Sliders and numeric steppers
+    # Sliders and numeric parameter controls
     params = layer.get("params", {})
     param_specs = meta.get("params", {})
 
@@ -214,111 +287,90 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
                     _render_param_input(layer["id"], p2_name, p2_spec, params.get(p2_name, p2_spec["default"]))
 
 
-def _render_param_input(layer_id: str, p_name: str, p_spec: dict, current_val):
-    """Renders synchronized parameter control."""
+def _render_param_input(layer_id: str, p_name: str, p_spec: dict, current_val: Any):
+    """
+    Renders high-precision parameter control using native on_change callback.
+    Guarantees zero-loop, zero-flicker updating.
+    """
     p_type = p_spec.get("type", "float")
     label = p_spec.get("label", p_name)
+    w_key = f"param_{layer_id}_{p_name}"
 
     if p_type == "float":
         min_v = float(p_spec.get("min", 0.0))
         max_v = float(p_spec.get("max", 1.0))
         step_v = float(p_spec.get("step", 0.05))
 
-        st.markdown(f"<div style='font-size: 0.92rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px;'>{label}</div>", unsafe_allow_html=True)
-        col_sl, col_num = st.columns([3, 1.2])
-        with col_sl:
-            v_sl = st.slider(
-                label,
-                min_value=min_v,
-                max_value=max_v,
-                value=float(current_val),
-                step=step_v,
-                key=f"sl_{layer_id}_{p_name}",
-                label_visibility="collapsed"
-            )
-        with col_num:
-            v_num = st.number_input(
-                label,
-                min_value=min_v,
-                max_value=max_v,
-                value=float(current_val),
-                step=step_v,
-                key=f"num_{layer_id}_{p_name}",
-                label_visibility="collapsed"
-            )
+        cur_f = float(current_val)
+        if cur_f < min_v:
+            cur_f = min_v
+        if cur_f > max_v:
+            cur_f = max_v
 
-        new_val = current_val
-        if abs(v_sl - current_val) > 1e-6:
-            new_val = v_sl
-        elif abs(v_num - current_val) > 1e-6:
-            new_val = v_num
+        if w_key not in st.session_state:
+            st.session_state[w_key] = cur_f
 
-        if abs(new_val - current_val) > 1e-6:
-            update_layer_parameter(layer_id, p_name, new_val)
-            st.rerun()
+        st.slider(
+            label=f"{label} ({p_name})",
+            min_value=min_v,
+            max_value=max_v,
+            step=step_v,
+            key=w_key,
+            on_change=_on_param_change,
+            args=(layer_id, p_name, w_key, "float", False),
+            help=f"Range: [{min_v}, {max_v}], Default: {p_spec.get('default')}"
+        )
 
     elif p_type == "int":
         min_v = int(p_spec.get("min", 0))
         max_v = int(p_spec.get("max", 100))
         step_v = int(p_spec.get("step", 1))
+        odd_req = bool(p_spec.get("odd", False))
 
-        st.markdown(f"<div style='font-size: 0.92rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px;'>{label}</div>", unsafe_allow_html=True)
-        col_sl, col_num = st.columns([3, 1.2])
-        with col_sl:
-            v_sl = st.slider(
-                label,
-                min_value=min_v,
-                max_value=max_v,
-                value=int(current_val),
-                step=step_v,
-                key=f"sl_{layer_id}_{p_name}",
-                label_visibility="collapsed"
-            )
-        with col_num:
-            v_num = st.number_input(
-                label,
-                min_value=min_v,
-                max_value=max_v,
-                value=int(current_val),
-                step=step_v,
-                key=f"num_{layer_id}_{p_name}",
-                label_visibility="collapsed"
-            )
+        cur_i = int(current_val)
+        if cur_i < min_v:
+            cur_i = min_v
+        if cur_i > max_v:
+            cur_i = max_v
 
-        new_val = current_val
-        if v_sl != current_val:
-            new_val = v_sl
-        elif v_num != current_val:
-            new_val = v_num
+        if w_key not in st.session_state:
+            st.session_state[w_key] = cur_i
 
-        if new_val != current_val:
-            # Enforce odd requirement if specified
-            if p_spec.get("odd", False) and new_val % 2 == 0:
-                new_val += 1
-            update_layer_parameter(layer_id, p_name, new_val)
-            st.rerun()
-
-    elif p_type == "choice":
-        options = p_spec.get("options", [])
-        st.markdown(f"<div style='font-size: 0.92rem; font-weight: 600; color: #f1f5f9; margin-bottom: 4px;'>{label}</div>", unsafe_allow_html=True)
-        idx = options.index(current_val) if current_val in options else 0
-        new_choice = st.selectbox(
-            label,
-            options=options,
-            index=idx,
-            key=f"choice_{layer_id}_{p_name}",
-            label_visibility="collapsed"
+        st.slider(
+            label=f"{label} ({p_name})",
+            min_value=min_v,
+            max_value=max_v,
+            step=step_v,
+            key=w_key,
+            on_change=_on_param_change,
+            args=(layer_id, p_name, w_key, "int", odd_req),
+            help=f"Range: [{min_v}, {max_v}], Default: {p_spec.get('default')}"
         )
-        if new_choice != current_val:
-            update_layer_parameter(layer_id, p_name, new_choice)
-            st.rerun()
+
+    elif p_type in ("select", "choice"):
+        options = p_spec.get("options", [])
+        idx = options.index(current_val) if current_val in options else 0
+
+        if w_key not in st.session_state or st.session_state[w_key] not in options:
+            st.session_state[w_key] = options[idx] if options else ""
+
+        st.selectbox(
+            label=f"{label} ({p_name})",
+            options=options,
+            key=w_key,
+            on_change=_on_param_change,
+            args=(layer_id, p_name, w_key, "select", False),
+            help=f"Default: {p_spec.get('default')}"
+        )
 
     elif p_type == "bool":
-        new_bool = st.checkbox(
-            label,
-            value=bool(current_val),
-            key=f"bool_{layer_id}_{p_name}"
+        if w_key not in st.session_state:
+            st.session_state[w_key] = bool(current_val)
+
+        st.checkbox(
+            label=f"{label} ({p_name})",
+            key=w_key,
+            on_change=_on_param_change,
+            args=(layer_id, p_name, w_key, "bool", False),
+            help=f"Default: {p_spec.get('default')}"
         )
-        if new_bool != current_val:
-            update_layer_parameter(layer_id, p_name, new_bool)
-            st.rerun()

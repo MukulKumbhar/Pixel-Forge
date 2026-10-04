@@ -111,7 +111,6 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
                 label_visibility="collapsed",
                 key="viewport_mode_radio"
             )
-
         if view_mode == "Side-by-Side (Dual)":
             col_left, col_right = st.columns(2)
             with col_left:
@@ -119,14 +118,14 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
                     f"<div style='font-size: 0.88rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px;'>📷 SOURCE FRAME ({raw_img.shape[1]} × {raw_img.shape[0]} px)</div>",
                     unsafe_allow_html=True
                 )
-                st.image(raw_img, use_container_width=True)
+                st.image(raw_img, width="stretch")
 
             with col_right:
                 st.markdown(
                     f"<div style='font-size: 0.88rem; font-weight: 700; color: #818cf8; margin-bottom: 6px;'>✨ PROCESSED OUTPUT ({proc_img.shape[1]} × {proc_img.shape[0]} px)</div>",
                     unsafe_allow_html=True
                 )
-                st.image(proc_img, use_container_width=True)
+                st.image(proc_img, width="stretch")
 
         elif view_mode == "Interactive Split Wipe":
             split_pos = st.slider(
@@ -157,7 +156,7 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
                 f"<div style='font-size: 0.88rem; font-weight: 700; color: #818cf8; margin-bottom: 6px;'>⬅️ SOURCE ({split_pos}%) | PROCESSED ({100 - split_pos}%) ➡️</div>",
                 unsafe_allow_html=True
             )
-            st.image(split_canvas, use_container_width=True)
+            st.image(split_canvas, width="stretch")
 
         elif view_mode == "Difference Heatmap":
             h, w = raw_img.shape[:2]
@@ -179,10 +178,10 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
             col_left, col_right = st.columns(2)
             with col_left:
                 st.markdown("<div style='font-size: 0.88rem; font-weight: 700; color: #818cf8; margin-bottom: 6px;'>PROCESSED OUTPUT</div>", unsafe_allow_html=True)
-                st.image(proc_img, use_container_width=True)
+                st.image(proc_img, width="stretch")
             with col_right:
                 st.markdown("<div style='font-size: 0.88rem; font-weight: 700; color: #f43f5e; margin-bottom: 6px;'>RESIDUAL ERROR HEATMAP (|Source - Output|)</div>", unsafe_allow_html=True)
-                st.image(heatmap_rgb, use_container_width=True)
+                st.image(heatmap_rgb, width="stretch")
 
         else:
             # Full Canvas (Processed)
@@ -190,8 +189,7 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
                 f"<div style='font-size: 0.92rem; font-weight: 700; color: #818cf8; margin-bottom: 6px;'>✨ FULL CANVAS PROCESSED OUTPUT ({proc_img.shape[1]} × {proc_img.shape[0]} px)</div>",
                 unsafe_allow_html=True
             )
-            st.image(proc_img, use_container_width=True)
-
+            st.image(proc_img, width="stretch")
 
 def render_histogram_dock(raw_img: np.ndarray, proc_img: np.ndarray):
     """
