@@ -174,7 +174,7 @@ def main():
         sel_domain = st.selectbox(
             "Select Domain",
             options=domain_keys,
-            format_func=lambda d: DOMAINS[d]["name"],
+            format_func=lambda d: DOMAINS[d].get("title", DOMAINS[d].get("name", str(d))),
             key="sidebar_add_domain"
         )
 

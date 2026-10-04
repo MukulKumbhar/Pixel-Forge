@@ -20,36 +20,43 @@ import algorithms.artistic as art
 # Domain definitions mapping academic syllabi to modern professional roles
 DOMAINS = {
     "geometry": {
+        "name": "1. Geometric & Spatial Foundations",
         "title": "1. Geometric & Spatial Foundations",
         "unit": "Unit 1",
         "description": "Spatial discretization, sampling resolutions, bit-depth quantization, affine transformations, canvas geometry, and lens distortion."
     },
     "radiometric": {
+        "name": "2. Radiometric & Contrast Calibration",
         "title": "2. Radiometric & Contrast Calibration",
         "unit": "Unit 2",
         "description": "Point transformations, tone mapping, dynamic range expansion, transfer functions, cumulative distribution processing, and posterization."
     },
     "restoration": {
+        "name": "3. Stochastic Denoising & Image Restoration",
         "title": "3. Stochastic Denoising & Image Restoration",
         "unit": "Unit 3",
         "description": "Degradation modeling, inverse filtering, spatial order-statistics, Gaussian/motion blur, bilateral smoothing, and unsharp masking."
     },
     "colorimetry": {
+        "name": "4. Chromatic Engine & Color Grading",
         "title": "4. Chromatic Engine & Color Grading",
         "unit": "Unit 4",
         "description": "Color space decomposition (RGB, HSI, CMYK), chromatic adaptation, vector scopes, multi-channel balance, vibrance, sepia, and split-toning."
     },
     "segmentation": {
+        "name": "5. Feature Segmentation & Structural Analysis",
         "title": "5. Feature Segmentation & Structural Analysis",
         "unit": "Unit 5",
         "description": "Discontinuity detection, differential edge operators, hysteresis edge linking, parameter-space voting (Hough lines/circles), adaptive thresholding, and Harris corners."
     },
     "morphology": {
+        "name": "6. Morphological Mechanics",
         "title": "6. Morphological Mechanics",
         "unit": "Unit 6",
         "description": "Set-theoretic geometry, topological probes (structuring elements), boundary extraction, top-hat, black-hat, and hit-or-miss transforms."
     },
     "artistic": {
+        "name": "7. Creative FX & Photoshop Studio",
         "title": "7. Creative FX & Photoshop Studio",
         "unit": "Creative Studio",
         "description": "Professional creative filters, Photoshop artistic effects (Pencil Sketch, Cartoonify, Bas-Relief Emboss, Radial Vignette, Tilt-Shift Miniature)."
