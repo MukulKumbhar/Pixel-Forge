@@ -1,6 +1,6 @@
 """
 Pixel-Forge — Interactive Digital Image Processing Studio
-Entry Point: Orchestrates layout, state, sidebar pipeline stack, and dual viewport rendering.
+Entry Point: Orchestrates layout, state, sidebar pipeline stack, and responsive viewport rendering.
 """
 
 import io
@@ -15,6 +15,7 @@ import streamlit as st
 from core.pipeline import execute_pipeline
 from core.state_manager import (
     PRESETS,
+    add_layer_to_stack,
     clear_layer_stack,
     init_session_state,
     load_preset,
@@ -30,9 +31,10 @@ from algorithms.registry import ALGORITHM_REGISTRY, DOMAINS
 from ui.styles import apply_studio_styles
 from ui.viewport import (
     render_dual_viewport,
+    render_histogram_dock,
     render_telemetry_banner,
 )
-from ui.bottom_tray import render_bottom_tray
+from ui.parameter_drawer import render_parameter_drawer
 from ui.conflict_resolver import render_conflict_alerts
 
 # Set page config
@@ -90,7 +92,7 @@ def main():
     # -------------------------------------------------------------
     # 2. IMAGE LOADER & TOP WORKSPACE BAR
     # -------------------------------------------------------------
-    top_col1, top_col2, top_col3 = st.columns([1.5, 1.5, 1])
+    top_col1, top_col2, top_col3 = st.columns([1.6, 1.6, 1.2])
 
     with top_col1:
         sample_options = {
@@ -125,7 +127,7 @@ def main():
         raw_base_image = load_image_asset(selected_sample)
 
     with top_col3:
-        st.write("")  # Spacing
+        st.markdown("<div style='font-size: 0.82rem; font-weight: 700; color: #94a3b8; margin-bottom: 7px;'>PIPELINE HISTORY</div>", unsafe_allow_html=True)
         undo_col, redo_col, reset_col = st.columns(3)
         with undo_col:
             can_undo = len(st.session_state.get("history_stack", [])) > 0
@@ -143,10 +145,10 @@ def main():
                 st.rerun()
 
     # -------------------------------------------------------------
-    # 3. SIDEBAR: ACTIVE STACK & PRESET MANAGER
+    # 3. SIDEBAR: PIPELINE STACK & TOOL SELECTION
     # -------------------------------------------------------------
     with st.sidebar:
-        st.markdown("### 🎞️ **Active Layer Stack**")
+        st.markdown("### 🎞️ **Pipeline Layer Stack**")
         st.caption("Non-destructive serial chain evaluated in milliseconds.")
 
         # Preset selector callback to eliminate infinite rerun loop
@@ -154,7 +156,6 @@ def main():
             chosen = st.session_state.get("preset_dropdown_choice")
             if chosen and chosen != "-- Select Preset --":
                 load_preset(chosen)
-                # Reset selection back to default so subsequent reruns never loop!
                 st.session_state["preset_dropdown_choice"] = "-- Select Preset --"
 
         st.selectbox(
@@ -165,29 +166,33 @@ def main():
             on_change=on_preset_dropdown_change
         )
 
-        # 1-Click Quick Preset Buttons
-        st.markdown("<div style='font-size: 0.84rem; font-weight: 700; color: #cbd5e1; margin-top: 10px; margin-bottom: 6px;'>⚡ QUICK PRESETS:</div>", unsafe_allow_html=True)
-        qp_col1, qp_col2 = st.columns(2)
-        with qp_col1:
-            if st.button("✨ Retouch", key="qp_retouch", use_container_width=True, help="Glamour skin smoothing + vibrance + unsharp mask"):
-                load_preset("photoshop_portrait")
-                st.rerun()
-            if st.button("🎬 Film Grade", key="qp_film", use_container_width=True):
-                load_preset("film_grade")
-                st.rerun()
-            if st.button("📐 Edge Hough", key="qp_edge", use_container_width=True):
-                load_preset("edge_hough")
-                st.rerun()
-        with qp_col2:
-            if st.button("🎨 Sketch", key="qp_sketch", use_container_width=True, help="Graphite pencil drawing + optical vignette"):
-                load_preset("artistic_sketch")
-                st.rerun()
-            if st.button("📄 Doc Clean", key="qp_doc", use_container_width=True):
-                load_preset("doc_cleaning")
-                st.rerun()
-            if st.button("🔬 Denoise", key="qp_denoise", use_container_width=True):
-                load_preset("noise_restoration")
-                st.rerun()
+        st.divider()
+
+        # ➕ Add Processing Stage Selector (66 Algorithms across 7 Domains)
+        st.markdown("#### ➕ **Add Filter Stage**")
+        domain_keys = list(DOMAINS.keys())
+        sel_domain = st.selectbox(
+            "Select Domain",
+            options=domain_keys,
+            format_func=lambda d: DOMAINS[d]["name"],
+            key="sidebar_add_domain"
+        )
+
+        domain_algos = {
+            k: f"{v['name']} ({v.get('input_contract', 'ANY')} → {v.get('output_contract', 'SAME')})"
+            for k, v in ALGORITHM_REGISTRY.items()
+            if v.get("domain") == sel_domain
+        }
+        sel_algo = st.selectbox(
+            "Select Algorithm",
+            options=list(domain_algos.keys()),
+            format_func=lambda k: domain_algos[k],
+            key="sidebar_add_algo"
+        )
+
+        if st.button("➕ Add Stage to Stack", use_container_width=True, type="primary"):
+            add_layer_to_stack(sel_algo)
+            st.rerun()
 
         st.divider()
 
@@ -195,8 +200,9 @@ def main():
         stack = st.session_state.active_layer_stack
 
         if not stack:
-            st.info("Stack is empty. Select a tool from the **Bottom Filter Catalog** or load a **Workflow Preset** above.")
+            st.info("Pipeline is empty. Select an algorithm above or load a **Workflow Preset** to start processing.")
         else:
+            st.markdown(f"<div style='font-size: 0.84rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;'>ACTIVE STAGES ({len(stack)}):</div>", unsafe_allow_html=True)
             for idx, layer in enumerate(stack):
                 layer_id = layer["id"]
                 is_selected = (st.session_state.selected_layer_id == layer_id)
@@ -215,7 +221,7 @@ def main():
                         f"""
                         <div class="{card_class}">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                <strong style="font-size: 0.94rem; color: #f8fafc;">
+                                <strong style="font-size: 0.92rem; color: #f8fafc;">
                                     {idx + 1}. {layer['name']}
                                 </strong>
                                 <span class="badge badge-unit">{in_c}</span>
@@ -246,7 +252,7 @@ def main():
 
                     with c_gear:
                         btn_label = "⚙️" if not is_selected else "★"
-                        if st.button(btn_label, key=f"btn_gear_{layer_id}", help="Open parameter drawer"):
+                        if st.button(btn_label, key=f"btn_gear_{layer_id}", help="Tweak stage parameters"):
                             st.session_state.selected_layer_id = layer_id if not is_selected else None
                             st.rerun()
 
@@ -255,8 +261,7 @@ def main():
                             remove_layer(layer_id)
                             st.rerun()
 
-            st.divider()
-            # Clear stack button
+            st.write("")
             if st.button("Clear All Stages", use_container_width=True, type="secondary"):
                 clear_layer_stack()
                 st.rerun()
@@ -273,13 +278,74 @@ def main():
     # Telemetry diagnostics banner
     render_telemetry_banner(raw_base_image, processed_image, pipeline_result)
 
-    # Fixed Sticky Dual-Viewport
+    # Full-Screen Responsive Dual-Viewport Canvas
     render_dual_viewport(raw_base_image, processed_image)
 
     # -------------------------------------------------------------
-    # 5. UNIFIED RESIZABLE & COLLAPSIBLE BOTTOM FILTER TRAY
+    # 5. ACTIVE STAGE PARAMETER STUDIO
     # -------------------------------------------------------------
-    render_bottom_tray(raw_base_image, processed_image)
+    if st.session_state.active_layer_stack:
+        selected_id = st.session_state.get("selected_layer_id")
+        if not selected_id and st.session_state.active_layer_stack:
+            # Default to the most recently active layer
+            selected_id = st.session_state.active_layer_stack[-1]["id"]
+            st.session_state.selected_layer_id = selected_id
+
+        render_parameter_drawer(selected_id)
+
+    # -------------------------------------------------------------
+    # 6. COMPARATIVE HISTOGRAMS EXPANDER
+    # -------------------------------------------------------------
+    render_histogram_dock(raw_base_image, processed_image)
+
+    # -------------------------------------------------------------
+    # 7. EXPORT STUDIO & PIPELINE RECIPE EXPANDER
+    # -------------------------------------------------------------
+    with st.expander("💾 **Export Studio & Pipeline Recipe**", expanded=False):
+        exp_col1, exp_col2, exp_col3 = st.columns([1.2, 1.2, 1.4])
+
+        with exp_col1:
+            st.markdown("<div style='font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;'>📸 Export Processed Image</div>", unsafe_allow_html=True)
+            is_rgb = (processed_image.ndim == 3 and processed_image.shape[2] == 3)
+            out_bgr = cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR) if is_rgb else processed_image
+            success, encoded_img = cv2.imencode('.png', out_bgr)
+            if success:
+                st.download_button(
+                    label="⬇️ Download Full-Res PNG",
+                    data=encoded_img.tobytes(),
+                    file_name="pixel_forge_export.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+
+        with exp_col2:
+            st.markdown("<div style='font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;'>📋 Export Pipeline Recipe</div>", unsafe_allow_html=True)
+            recipe = {
+                "studio": "Pixel-Forge",
+                "version": "1.0",
+                "layers": st.session_state.active_layer_stack
+            }
+            recipe_json = json.dumps(recipe, indent=2)
+            st.download_button(
+                label="⬇️ Download Recipe JSON",
+                data=recipe_json,
+                file_name="pixel_forge_recipe.json",
+                mime="application/json",
+                use_container_width=True
+            )
+
+        with exp_col3:
+            st.markdown("<div style='font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;'>📂 Import Pipeline Recipe</div>", unsafe_allow_html=True)
+            recipe_file = st.file_uploader("Upload Recipe JSON", type=["json"], label_visibility="collapsed")
+            if recipe_file is not None:
+                try:
+                    data = json.load(recipe_file)
+                    if "layers" in data:
+                        st.session_state["active_layer_stack"] = data["layers"]
+                        st.success("Pipeline recipe imported successfully!")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to parse recipe: {e}")
 
 
 if __name__ == "__main__":

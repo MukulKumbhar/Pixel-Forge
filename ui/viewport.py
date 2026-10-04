@@ -1,7 +1,7 @@
 """
-ImageLab Pro - Dual-Pane Viewport & Diagnostics Studio
-Renders high-resolution side-by-side comparison, real-time radiometric telemetry,
-and synchronized comparative histogram distributions with user-adjustable canvas scale.
+Pixel-Forge - Dual-Pane Viewport & Diagnostics Studio
+Renders full-screen high-resolution side-by-side comparison, real-time radiometric telemetry,
+and synchronized comparative histogram distributions.
 """
 
 from typing import Optional
@@ -83,24 +83,27 @@ def render_telemetry_banner(raw_img: np.ndarray, proc_img: np.ndarray, result: P
 
 def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
     """
-    Renders the fixed dual-viewport canvas (Source Image vs Processed Output).
-    Provides quick view controls: Side-by-Side (Dual), Full Canvas (Processed), Interactive Split Wipe, Difference Heatmap.
-    Also provides quick Canvas Scale controls (Comfortable, Spacious, Ultra Detail, Compact).
+    Renders the responsive full-screen dual-viewport canvas.
+    Modes:
+      1. Side-by-Side (Dual): Direct comparison of source frame and processed output.
+      2. Full Canvas (Processed): Clean, unobstructed view of processed output.
+      3. Interactive Split Wipe: Dynamic horizontal reveal slider between input and output.
+      4. Difference Heatmap: Residual error magnitude (|Source - Processed|) via thermal JET colormap.
     """
     with st.container():
-        view_ctrl1, view_ctrl2, view_ctrl3 = st.columns([1.2, 1.8, 1.1])
-        with view_ctrl1:
+        ctrl_col1, ctrl_col2 = st.columns([1, 2.5])
+        with ctrl_col1:
             st.markdown(
                 """
-                <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
-                    <span style="font-size: 1.15rem;">🖥️</span>
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                    <span style="font-size: 1.25rem;">🖥️</span>
                     <span style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Canvas Viewport</span>
-                    <span class="badge badge-unit">Live Preview</span>
+                    <span class="badge badge-unit">Responsive Full-Screen</span>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-        with view_ctrl2:
+        with ctrl_col2:
             view_mode = st.radio(
                 "Viewport Mode",
                 options=["Side-by-Side (Dual)", "Full Canvas (Processed)", "Interactive Split Wipe", "Difference Heatmap"],
@@ -109,45 +112,31 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
                 key="viewport_mode_radio"
             )
 
-        with view_ctrl3:
-            scale_options = {
-                "Comfortable (520px)": 520,
-                "Spacious (640px)": 640,
-                "Ultra Detail (760px)": 760,
-                "Compact (400px)": 400
-            }
-            cur_h = st.session_state.get("preview_height", 520)
-            cur_label = next((k for k, v in scale_options.items() if v == cur_h), "Comfortable (520px)")
-            chosen_scale = st.selectbox(
-                "Canvas Scale",
-                options=list(scale_options.keys()),
-                index=list(scale_options.keys()).index(cur_label),
-                key="canvas_scale_select",
-                label_visibility="collapsed",
-                help="Adjust image display height on screen"
-            )
-            if scale_options[chosen_scale] != cur_h:
-                st.session_state["preview_height"] = scale_options[chosen_scale]
-                st.rerun()
-
         if view_mode == "Side-by-Side (Dual)":
             col_left, col_right = st.columns(2)
             with col_left:
                 st.markdown(
-                    f"<div style='font-size: 0.88rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px; letter-spacing: 0.02em;'>📷 SOURCE FRAME ({raw_img.shape[1]} × {raw_img.shape[0]})</div>",
+                    f"<div style='font-size: 0.88rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px;'>📷 SOURCE FRAME ({raw_img.shape[1]} × {raw_img.shape[0]} px)</div>",
                     unsafe_allow_html=True
                 )
                 st.image(raw_img, use_container_width=True)
 
             with col_right:
                 st.markdown(
-                    f"<div style='font-size: 0.88rem; font-weight: 700; color: #818cf8; margin-bottom: 6px; letter-spacing: 0.02em;'>✨ PROCESSED OUTPUT ({proc_img.shape[1]} × {proc_img.shape[0]})</div>",
+                    f"<div style='font-size: 0.88rem; font-weight: 700; color: #818cf8; margin-bottom: 6px;'>✨ PROCESSED OUTPUT ({proc_img.shape[1]} × {proc_img.shape[0]} px)</div>",
                     unsafe_allow_html=True
                 )
                 st.image(proc_img, use_container_width=True)
 
         elif view_mode == "Interactive Split Wipe":
-            split_pos = st.slider("Wipe Position (% Source vs % Output)", min_value=0, max_value=100, value=50, step=1, key="split_wipe_slider")
+            split_pos = st.slider(
+                "Wipe Position (% Source vs % Output)",
+                min_value=0,
+                max_value=100,
+                value=50,
+                step=1,
+                key="split_wipe_slider"
+            )
             h, w = raw_img.shape[:2]
             proc_aligned = cv2.resize(proc_img, (w, h))
             if raw_img.ndim == 3 and proc_aligned.ndim == 2:
@@ -159,7 +148,7 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
             split_canvas = proc_aligned.copy()
             split_canvas[:, :split_col] = raw_img[:, :split_col]
 
-            # Draw clean divider line
+            # Draw white divider boundary line
             if 0 < split_col < w:
                 line_w = max(1, w // 256)
                 split_canvas[:, max(0, split_col - line_w):min(w, split_col + line_w + 1)] = [255, 255, 255] if split_canvas.ndim == 3 else 255
@@ -171,7 +160,6 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
             st.image(split_canvas, use_container_width=True)
 
         elif view_mode == "Difference Heatmap":
-            # Calculate pixel difference magnitude
             h, w = raw_img.shape[:2]
             proc_aligned = cv2.resize(proc_img, (w, h))
             if raw_img.ndim == 3 and proc_aligned.ndim == 2:
@@ -208,7 +196,7 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
 def render_histogram_dock(raw_img: np.ndarray, proc_img: np.ndarray):
     """
     Renders synchronized comparative histogram distributions (Input vs Output)
-    inside a collapsible studio drawer for standalone or modular use.
+    inside a clean collapsible expander.
     """
     with st.expander("📊 **Comparative Image Histograms (Input vs Output)**", expanded=False):
         hist_mode = st.radio(
@@ -256,4 +244,3 @@ def render_histogram_dock(raw_img: np.ndarray, proc_img: np.ndarray):
         plt.tight_layout()
         st.pyplot(fig, use_container_width=True)
         plt.close(fig)
-
