@@ -258,12 +258,37 @@ div[data-testid="stVerticalBlock"] > div,
     transition: all 0.15s ease;
 }
 
-/* Streamlit container clean borders */
+/* Studio Expanders Suite - Polished Dark DCC Aesthetics */
 div[data-testid="stExpander"] {
-    background: rgba(30, 41, 59, 0.35);
-    border: 1px solid var(--border-subtle);
-    border-radius: 10px;
-    margin-bottom: 0.8rem;
+    background: rgba(15, 23, 42, 0.75) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    border-radius: 12px !important;
+    margin-top: 0.6rem !important;
+    margin-bottom: 0.9rem !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+    overflow: hidden !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+div[data-testid="stExpander"]:hover {
+    border-color: rgba(99, 102, 241, 0.55) !important;
+    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.2) !important;
+}
+
+div[data-testid="stExpander"] summary {
+    font-weight: 700 !important;
+    font-size: 0.96rem !important;
+    color: #f8fafc !important;
+    padding: 0.75rem 1rem !important;
+    letter-spacing: -0.01em !important;
+}
+
+div[data-testid="stExpander"] summary:hover {
+    color: #a5b4fc !important;
+}
+
+div[data-testid="stExpander"] div[role="region"] {
+    padding: 0.8rem 1.2rem 1.2rem 1.2rem !important;
 }
 </style>
 """

@@ -34,7 +34,7 @@ from ui.viewport import (
     render_histogram_dock,
     render_telemetry_banner,
 )
-from ui.parameter_drawer import render_parameter_drawer
+from ui.parameter_drawer import render_parameter_drawer, render_filter_catalog
 from ui.conflict_resolver import render_conflict_alerts
 
 # Set page config
@@ -145,7 +145,7 @@ def main():
                 st.rerun()
 
     # -------------------------------------------------------------
-    # 3. SIDEBAR: PIPELINE STACK & TOOL SELECTION
+    # 3. SIDEBAR: PIPELINE STACK & REORDERING
     # -------------------------------------------------------------
     with st.sidebar:
         st.markdown("### 🎞️ **Pipeline Layer Stack**")
@@ -168,39 +168,11 @@ def main():
 
         st.divider()
 
-        # ➕ Add Processing Stage Selector (66 Algorithms across 7 Domains)
-        st.markdown("#### ➕ **Add Filter Stage**")
-        domain_keys = list(DOMAINS.keys())
-        sel_domain = st.selectbox(
-            "Select Domain",
-            options=domain_keys,
-            format_func=lambda d: DOMAINS[d].get("title", DOMAINS[d].get("name", str(d))),
-            key="sidebar_add_domain"
-        )
-
-        domain_algos = {
-            k: f"{v['name']} ({v.get('input_contract', 'ANY')} → {v.get('output_contract', 'SAME')})"
-            for k, v in ALGORITHM_REGISTRY.items()
-            if v.get("domain") == sel_domain
-        }
-        sel_algo = st.selectbox(
-            "Select Algorithm",
-            options=list(domain_algos.keys()),
-            format_func=lambda k: domain_algos[k],
-            key="sidebar_add_algo"
-        )
-
-        if st.button("➕ Add Stage to Stack", use_container_width=True, type="primary"):
-            add_layer_to_stack(sel_algo)
-            st.rerun()
-
-        st.divider()
-
-        # Render active layers
+        # Render active layers list
         stack = st.session_state.active_layer_stack
 
         if not stack:
-            st.info("Pipeline is empty. Select an algorithm above or load a **Workflow Preset** to start processing.")
+            st.info("Pipeline is empty. Open the **Filter Catalog** expander in the workspace or choose a preset above to begin.")
         else:
             st.markdown(f"<div style='font-size: 0.84rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;'>ACTIVE STAGES ({len(stack)}):</div>", unsafe_allow_html=True)
             for idx, layer in enumerate(stack):
@@ -282,25 +254,21 @@ def main():
     render_dual_viewport(raw_base_image, processed_image)
 
     # -------------------------------------------------------------
-    # 5. ACTIVE STAGE PARAMETER STUDIO
+    # 5. STUDIO CONTROL EXPANDERS SUITE
     # -------------------------------------------------------------
-    if st.session_state.active_layer_stack:
-        selected_id = st.session_state.get("selected_layer_id")
-        if not selected_id and st.session_state.active_layer_stack:
-            # Default to the most recently active layer
-            selected_id = st.session_state.active_layer_stack[-1]["id"]
-            st.session_state.selected_layer_id = selected_id
+    # Expander 1: Filter Catalog & Algorithm Selector (Browse & Add Stages)
+    with st.expander("🎛️ **Filter Catalog & Algorithm Selector (Browse & Add Stages)**", expanded=False):
+        render_filter_catalog()
 
-        render_parameter_drawer(selected_id)
+    # Expander 2: Active Filter Parameters & Stage Controls
+    has_active_layers = len(st.session_state.get("active_layer_stack", [])) > 0
+    with st.expander("⚙️ **Active Filter Parameters & Stage Controls**", expanded=has_active_layers):
+        render_parameter_drawer(st.session_state.get("selected_layer_id"))
 
-    # -------------------------------------------------------------
-    # 6. COMPARATIVE HISTOGRAMS EXPANDER
-    # -------------------------------------------------------------
+    # Expander 3: Comparative Image Histograms (Input vs Output)
     render_histogram_dock(raw_base_image, processed_image)
 
-    # -------------------------------------------------------------
-    # 7. EXPORT STUDIO & PIPELINE RECIPE EXPANDER
-    # -------------------------------------------------------------
+    # Expander 4: Export Studio & Pipeline Recipe
     with st.expander("💾 **Export Studio & Pipeline Recipe**", expanded=False):
         exp_col1, exp_col2, exp_col3 = st.columns([1.2, 1.2, 1.4])
 
