@@ -221,3 +221,255 @@ def perspective_keystone(image: np.ndarray, tilt_x: float = 0.1, tilt_y: float =
     M = cv2.getPerspectiveTransform(src_pts, dst_pts)
     return cv2.warpPerspective(image, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
+
+# ============================================================
+# CREATIVE STUDIO ALGORITHM: Vector & Multi-Shape Cropper
+# Aim: Crop image using various shapes (Circle, Square, Rectangle,
+#      Ellipse, Triangle, Diamond, Hexagon, Octagon, Star, Heart,
+#      Polygon, Custom Bounding Box) with subpixel anti-aliasing,
+#      Gaussian feathering, alpha transparency, and tight-bounds crop.
+# ============================================================
+def vector_shape_crop(
+    image: np.ndarray,
+    shape: str = "circle",
+    center_x: float = 0.5,
+    center_y: float = 0.5,
+    size: float = 0.8,
+    aspect_ratio: str = "1:1",
+    rotation: float = 0.0,
+    feather: int = 0,
+    bg_fill: str = "transparent",
+    tight_crop: bool = True,
+    sides: int = 5,
+    star_inner_ratio: float = 0.382
+) -> np.ndarray:
+    """
+    Crops canvas using analytical vector shapes:
+    - Circle: Avatar & profile circular crop
+    - Square: 1:1 square crop
+    - Rectangle: Aspect-ratio locked or freeform box
+    - Ellipse: Smooth 2D ellipse with rotation
+    - Triangle: Equilateral / Isosceles polygon
+    - Diamond: Rhombus / 45-degree diamond
+    - Hexagon / Octagon: 6 or 8-sided regular polygon
+    - Star: 5-point (or custom) star badge
+    - Heart: Smooth mathematical cardioid heart curve
+    - Polygon: Regular N-sided polygon (3 to 16 sides)
+    - Custom Bounding Box: Freeform coordinate crop
+
+    Parameters:
+        image: Source RGB or Grayscale ndarray
+        shape: Shape name string
+        center_x: Normalized horizontal center (0.0 to 1.0)
+        center_y: Normalized vertical center (0.0 to 1.0)
+        size: Normalized size scale (0.05 to 1.0)
+        aspect_ratio: Aspect ratio preset ("1:1", "4:3", "16:9", "3:2", "9:16", "freeform")
+        rotation: Rotation angle in degrees (-180 to 180)
+        feather: Gaussian soft-edge feathering radius in pixels (0 to 50)
+        bg_fill: Background mode ("transparent", "black", "white", "studio_dark")
+        tight_crop: Whether to crop canvas to shape bounding box (True) or keep canvas size (False)
+        sides: Number of sides for regular polygon (3 to 16)
+        star_inner_ratio: Ratio of inner to outer radius for star (0.1 to 0.9)
+    """
+    h, w = image.shape[:2]
+    cx = float(np.clip(center_x, 0.0, 1.0)) * w
+    cy = float(np.clip(center_y, 0.0, 1.0)) * h
+    base_dim = min(w, h)
+    s = max(8.0, float(np.clip(size, 0.05, 1.5)) * base_dim * 0.5)
+
+    # Resolve aspect ratio multiplier
+    ar_map = {
+        "1:1": 1.0,
+        "4:3": 4.0 / 3.0,
+        "16:9": 16.0 / 9.0,
+        "3:2": 3.0 / 2.0,
+        "2:1": 2.0,
+        "9:16": 9.0 / 16.0,
+        "3:4": 3.0 / 4.0,
+        "freeform": 1.0
+    }
+    ar_val = ar_map.get(aspect_ratio.lower(), 1.0)
+
+    # Initialize empty single-channel binary/float mask
+    mask = np.zeros((h, w), dtype=np.uint8)
+    shape_norm = shape.lower().strip()
+
+    rad_rot = np.radians(rotation)
+    cos_r = np.cos(rad_rot)
+    sin_r = np.sin(rad_rot)
+
+    def _rotate_points(pts: np.ndarray, pivot_x: float, pivot_y: float) -> np.ndarray:
+        shifted = pts - np.array([pivot_x, pivot_y])
+        rotated_x = shifted[:, 0] * cos_r - shifted[:, 1] * sin_r + pivot_x
+        rotated_y = shifted[:, 0] * sin_r + shifted[:, 1] * cos_r + pivot_y
+        return np.column_stack([rotated_x, rotated_y])
+
+    # ---------------------------------------------------------
+    # 1. SHAPE VECTOR GEOMETRY RENDERING
+    # ---------------------------------------------------------
+    if shape_norm in ["circle", "round"]:
+        cv2.circle(mask, (int(round(cx)), int(round(cy))), int(round(s)), 255, -1, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["square"]:
+        half = s
+        box_pts = np.array([
+            [cx - half, cy - half],
+            [cx + half, cy - half],
+            [cx + half, cy + half],
+            [cx - half, cy + half]
+        ], dtype=np.float32)
+        rot_pts = _rotate_points(box_pts, cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["rectangle", "rect"]:
+        half_w = s * np.sqrt(ar_val)
+        half_h = s / np.sqrt(ar_val)
+        box_pts = np.array([
+            [cx - half_w, cy - half_h],
+            [cx + half_w, cy - half_h],
+            [cx + half_w, cy + half_h],
+            [cx - half_w, cy + half_h]
+        ], dtype=np.float32)
+        rot_pts = _rotate_points(box_pts, cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["ellipse", "oval"]:
+        rx = int(round(s * np.sqrt(ar_val)))
+        ry = int(round(s / np.sqrt(ar_val)))
+        cv2.ellipse(mask, (int(round(cx)), int(round(cy))), (max(2, rx), max(2, ry)), rotation, 0, 360, 255, -1, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["triangle"]:
+        pts = []
+        for i in range(3):
+            angle = -np.pi / 2.0 + (2.0 * np.pi * i / 3.0)
+            pts.append([cx + s * np.cos(angle), cy + s * np.sin(angle)])
+        rot_pts = _rotate_points(np.array(pts, dtype=np.float32), cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["diamond", "rhombus"]:
+        rx = s * np.sqrt(ar_val)
+        ry = s / np.sqrt(ar_val)
+        pts = np.array([
+            [cx, cy - ry],
+            [cx + rx, cy],
+            [cx, cy + ry],
+            [cx - rx, cy]
+        ], dtype=np.float32)
+        rot_pts = _rotate_points(pts, cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["hexagon"]:
+        pts = []
+        for i in range(6):
+            angle = -np.pi / 2.0 + (2.0 * np.pi * i / 6.0)
+            pts.append([cx + s * np.cos(angle), cy + s * np.sin(angle)])
+        rot_pts = _rotate_points(np.array(pts, dtype=np.float32), cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["octagon"]:
+        pts = []
+        for i in range(8):
+            angle = -np.pi / 2.0 + (2.0 * np.pi * i / 8.0)
+            pts.append([cx + s * np.cos(angle), cy + s * np.sin(angle)])
+        rot_pts = _rotate_points(np.array(pts, dtype=np.float32), cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["star"]:
+        points_count = max(3, int(sides)) if sides > 3 else 5
+        r_outer = s
+        r_inner = s * float(np.clip(star_inner_ratio, 0.1, 0.9))
+        pts = []
+        total_verts = points_count * 2
+        for i in range(total_verts):
+            r = r_outer if (i % 2 == 0) else r_inner
+            angle = -np.pi / 2.0 + (np.pi * i / points_count)
+            pts.append([cx + r * np.cos(angle), cy + r * np.sin(angle)])
+        rot_pts = _rotate_points(np.array(pts, dtype=np.float32), cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["heart", "love"]:
+        t = np.linspace(0, 2.0 * np.pi, 360)
+        # Smooth parametric cardioid heart equations
+        hx = 16.0 * (np.sin(t) ** 3)
+        hy = -(13.0 * np.cos(t) - 5.0 * np.cos(2.0 * t) - 2.0 * np.cos(3.0 * t) - np.cos(4.0 * t))
+        # Normalize to [-1.0, 1.0]
+        hx = (hx / 16.0) * s
+        hy = (hy / 17.0) * s
+        pts = np.column_stack([cx + hx, cy + hy]).astype(np.float32)
+        rot_pts = _rotate_points(pts, cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    elif shape_norm in ["polygon", "ngon"]:
+        n_sides = max(3, min(16, int(sides)))
+        pts = []
+        for i in range(n_sides):
+            angle = -np.pi / 2.0 + (2.0 * np.pi * i / float(n_sides))
+            pts.append([cx + s * np.cos(angle), cy + s * np.sin(angle)])
+        rot_pts = _rotate_points(np.array(pts, dtype=np.float32), cx, cy)
+        cv2.fillPoly(mask, [np.int32(np.round(rot_pts))], 255, lineType=cv2.LINE_AA)
+
+    else:
+        # Default: Full-circle crop fallback
+        cv2.circle(mask, (int(round(cx)), int(round(cy))), int(round(s)), 255, -1, lineType=cv2.LINE_AA)
+
+    # ---------------------------------------------------------
+    # 2. EDGE FEATHERING (SOFT BOUNDARY BLUR)
+    # ---------------------------------------------------------
+    feather = int(np.clip(feather, 0, 50))
+    if feather > 0:
+        ksize = int(feather * 2 + 1) | 1
+        mask_float = cv2.GaussianBlur(mask.astype(np.float32), (ksize, ksize), feather / 2.0)
+        mask = np.clip(mask_float, 0.0, 255.0).astype(np.uint8)
+
+    # ---------------------------------------------------------
+    # 3. BACKGROUND BLENDING & CHANNEL SYNTHESIS
+    # ---------------------------------------------------------
+    bg_fill_norm = bg_fill.lower().strip()
+
+    if bg_fill_norm in ["transparent", "rgba", "alpha"]:
+        if image.ndim == 3 and image.shape[2] == 4:
+            # Combine incoming alpha with shape mask
+            combined_alpha = np.clip((image[:, :, 3].astype(np.float32) * mask.astype(np.float32)) / 255.0, 0, 255).astype(np.uint8)
+            result = np.dstack([image[:, :, :3], combined_alpha])
+        elif image.ndim == 3:
+            result = np.dstack([image, mask])
+        else:
+            rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            result = np.dstack([rgb, mask])
+    else:
+        # Solid background fill color mapping
+        bg_colors = {
+            "black": np.array([0, 0, 0], dtype=np.float32),
+            "white": np.array([255, 255, 255], dtype=np.float32),
+            "studio_dark": np.array([22, 27, 34], dtype=np.float32)
+        }
+        bg_vec = bg_colors.get(bg_fill_norm, np.array([0, 0, 0], dtype=np.float32))
+
+        # Ensure base image is RGB 3-channel for solid compositing
+        if image.ndim == 3 and image.shape[2] == 4:
+            base_rgb = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+        elif image.ndim == 2:
+            base_rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        else:
+            base_rgb = image.copy()
+
+        alpha_f = (mask.astype(np.float32) / 255.0)[:, :, np.newaxis]
+        composite = base_rgb.astype(np.float32) * alpha_f + bg_vec * (1.0 - alpha_f)
+        result = np.clip(composite, 0.0, 255.0).astype(np.uint8)
+
+    # ---------------------------------------------------------
+    # 4. TIGHT BOUNDING BOX CROP (OPTIONAL CANVAS TRIM)
+    # ---------------------------------------------------------
+    if tight_crop:
+        nonzero_y, nonzero_x = np.nonzero(mask > 2)
+        if len(nonzero_y) > 0 and len(nonzero_x) > 0:
+            y_min = max(0, int(np.min(nonzero_y)))
+            y_max = min(h, int(np.max(nonzero_y)) + 1)
+            x_min = max(0, int(np.min(nonzero_x)))
+            x_max = min(w, int(np.max(nonzero_x)) + 1)
+            if (y_max > y_min) and (x_max > x_min):
+                result = result[y_min:y_max, x_min:x_max]
+
+    return result
+
+

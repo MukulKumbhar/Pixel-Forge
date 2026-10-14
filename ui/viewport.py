@@ -29,7 +29,9 @@ def render_telemetry_banner(raw_img: np.ndarray, proc_img: np.ndarray, result: P
     total_count = len(result.stage_results)
 
     fmt_name = detect_state(proc_img)
-    if fmt_name == "RGB":
+    if fmt_name == "RGBA":
+        color_label = "RGBA (32-bit Alpha)"
+    elif fmt_name == "RGB":
         color_label = "RGB (24-bit)"
     elif fmt_name == "BINARY":
         color_label = "Binary (1-bit)"
@@ -138,19 +140,28 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
             )
             h, w = raw_img.shape[:2]
             proc_aligned = cv2.resize(proc_img, (w, h))
-            if raw_img.ndim == 3 and proc_aligned.ndim == 2:
-                proc_aligned = cv2.cvtColor(proc_aligned, cv2.COLOR_GRAY2RGB)
-            elif raw_img.ndim == 2 and proc_aligned.ndim == 3:
-                proc_aligned = cv2.cvtColor(proc_aligned, cv2.COLOR_RGB2GRAY)
+
+            # Normalize both images to RGB 3-channel for seamless horizontal split
+            raw_rgb = raw_img.copy()
+            if raw_rgb.ndim == 3 and raw_rgb.shape[2] == 4:
+                raw_rgb = cv2.cvtColor(raw_rgb, cv2.COLOR_RGBA2RGB)
+            elif raw_rgb.ndim == 2:
+                raw_rgb = cv2.cvtColor(raw_rgb, cv2.COLOR_GRAY2RGB)
+
+            proc_rgb = proc_aligned.copy()
+            if proc_rgb.ndim == 3 and proc_rgb.shape[2] == 4:
+                proc_rgb = cv2.cvtColor(proc_rgb, cv2.COLOR_RGBA2RGB)
+            elif proc_rgb.ndim == 2:
+                proc_rgb = cv2.cvtColor(proc_rgb, cv2.COLOR_GRAY2RGB)
 
             split_col = int((split_pos / 100.0) * w)
-            split_canvas = proc_aligned.copy()
-            split_canvas[:, :split_col] = raw_img[:, :split_col]
+            split_canvas = proc_rgb.copy()
+            split_canvas[:, :split_col] = raw_rgb[:, :split_col]
 
-            # Draw white divider boundary line
+            # Draw divider boundary line
             if 0 < split_col < w:
                 line_w = max(1, w // 256)
-                split_canvas[:, max(0, split_col - line_w):min(w, split_col + line_w + 1)] = [255, 255, 255] if split_canvas.ndim == 3 else 255
+                split_canvas[:, max(0, split_col - line_w):min(w, split_col + line_w + 1)] = [255, 255, 255]
 
             st.markdown(
                 f"<div style='font-size: 0.88rem; font-weight: 700; color: #818cf8; margin-bottom: 6px;'>⬅️ SOURCE ({split_pos}%) | PROCESSED ({100 - split_pos}%) ➡️</div>",
@@ -161,16 +172,21 @@ def render_dual_viewport(raw_img: np.ndarray, proc_img: np.ndarray):
         elif view_mode == "Difference Heatmap":
             h, w = raw_img.shape[:2]
             proc_aligned = cv2.resize(proc_img, (w, h))
-            if raw_img.ndim == 3 and proc_aligned.ndim == 2:
-                proc_aligned = cv2.cvtColor(proc_aligned, cv2.COLOR_GRAY2RGB)
-            elif raw_img.ndim == 2 and proc_aligned.ndim == 3:
-                proc_aligned = cv2.cvtColor(proc_aligned, cv2.COLOR_RGB2GRAY)
 
-            diff = cv2.absdiff(raw_img, proc_aligned)
-            if diff.ndim == 3:
-                diff_gray = cv2.cvtColor(diff, cv2.COLOR_RGB2GRAY)
-            else:
-                diff_gray = diff
+            raw_rgb = raw_img.copy()
+            if raw_rgb.ndim == 3 and raw_rgb.shape[2] == 4:
+                raw_rgb = cv2.cvtColor(raw_rgb, cv2.COLOR_RGBA2RGB)
+            elif raw_rgb.ndim == 2:
+                raw_rgb = cv2.cvtColor(raw_rgb, cv2.COLOR_GRAY2RGB)
+
+            proc_rgb = proc_aligned.copy()
+            if proc_rgb.ndim == 3 and proc_rgb.shape[2] == 4:
+                proc_rgb = cv2.cvtColor(proc_rgb, cv2.COLOR_RGBA2RGB)
+            elif proc_rgb.ndim == 2:
+                proc_rgb = cv2.cvtColor(proc_rgb, cv2.COLOR_GRAY2RGB)
+
+            diff = cv2.absdiff(raw_rgb, proc_rgb)
+            diff_gray = cv2.cvtColor(diff, cv2.COLOR_RGB2GRAY)
 
             heatmap = cv2.applyColorMap(diff_gray, cv2.COLORMAP_JET)
             heatmap_rgb = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)

@@ -13,12 +13,14 @@ from algorithms.registry import ALGORITHM_REGISTRY
 
 def detect_state(image: np.ndarray) -> str:
     """
-    Determines image state contract: 'RGB', 'GRAYSCALE', or 'BINARY'.
+    Determines image state contract: 'RGB', 'RGBA', 'GRAYSCALE', or 'BINARY'.
     """
     if image is None:
         return "UNKNOWN"
 
-    if image.ndim == 3 and image.shape[2] == 3:
+    if image.ndim == 3 and image.shape[2] == 4:
+        return "RGBA"
+    elif image.ndim == 3 and image.shape[2] == 3:
         return "RGB"
     elif image.ndim == 2 or (image.ndim == 3 and image.shape[2] == 1):
         # Single channel: check if values are strictly binary {0, 255}
@@ -32,21 +34,29 @@ def detect_state(image: np.ndarray) -> str:
 def convert_state(image: np.ndarray, source_state: str, target_state: str) -> np.ndarray:
     """
     Auto-conversion shim providing non-destructive format bridges:
-    - RGB -> GRAYSCALE (luminance extraction)
-    - RGB / GRAYSCALE -> BINARY (Otsu optimal thresholding)
+    - RGBA -> RGB (drop alpha or alpha blend)
+    - RGBA / RGB -> GRAYSCALE (luminance extraction)
+    - RGBA / RGB / GRAYSCALE -> BINARY (Otsu optimal thresholding)
     - GRAYSCALE / BINARY -> RGB (channel replication)
+    - RGB / GRAYSCALE / BINARY -> RGBA (channel expansion)
     """
     if source_state == target_state:
         return image
 
     if target_state == "GRAYSCALE":
-        if source_state == "RGB":
+        if source_state == "RGBA":
+            return cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+        elif source_state == "RGB":
             return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         elif source_state == "BINARY":
             return image.copy()  # Binary is already a valid 1-channel format
 
     elif target_state == "BINARY":
-        if source_state == "RGB":
+        if source_state == "RGBA":
+            gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            return binary
+        elif source_state == "RGB":
             gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             return binary
@@ -55,8 +65,17 @@ def convert_state(image: np.ndarray, source_state: str, target_state: str) -> np
             return binary
 
     elif target_state == "RGB":
-        if source_state in ["GRAYSCALE", "BINARY"]:
+        if source_state == "RGBA":
+            return cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+        elif source_state in ["GRAYSCALE", "BINARY"]:
             return cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+
+    elif target_state == "RGBA":
+        if source_state == "RGB":
+            return cv2.cvtColor(image, cv2.COLOR_RGB2RGBA)
+        elif source_state in ["GRAYSCALE", "BINARY"]:
+            rgb = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+            return cv2.cvtColor(rgb, cv2.COLOR_RGB2RGBA)
 
     return image
 

@@ -7,6 +7,8 @@ from ui.styles import apply_studio_styles
 from ui.viewport import render_dual_viewport, render_telemetry_banner, render_histogram_dock
 from ui.parameter_drawer import render_parameter_drawer, render_filter_catalog
 from ui.conflict_resolver import render_conflict_alerts
+from ui.compressor_dock import render_compressor_dock
+from ui.cropper_dock import render_cropper_dock
 
 __all__ = [
     "apply_studio_styles",
@@ -15,5 +17,7 @@ __all__ = [
     "render_histogram_dock",
     "render_parameter_drawer",
     "render_filter_catalog",
-    "render_conflict_alerts"
+    "render_conflict_alerts",
+    "render_compressor_dock",
+    "render_cropper_dock"
 ]

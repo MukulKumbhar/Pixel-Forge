@@ -36,6 +36,8 @@ from ui.viewport import (
 )
 from ui.parameter_drawer import render_parameter_drawer, render_filter_catalog
 from ui.conflict_resolver import render_conflict_alerts
+from ui.compressor_dock import render_compressor_dock
+from ui.cropper_dock import render_cropper_dock
 
 # Set page config
 st.set_page_config(
@@ -81,8 +83,8 @@ def main():
                 </div>
             </div>
             <div style="text-align: right;">
-                <span class="badge badge-unit">Academic Units 1 — 6 + Photoshop Studio</span>
-                <span class="badge badge-rgb" style="margin-left: 6px;">66 Real-Time Algorithms</span>
+                <span class="badge badge-unit">Academic Units 1 — 8 + Photoshop Studio</span>
+                <span class="badge badge-rgb" style="margin-left: 6px;">70 Real-Time Algorithms</span>
             </div>
         </div>
         """,
@@ -283,17 +285,29 @@ def main():
     with st.expander("⚙️ **Active Filter Parameters & Stage Controls**", expanded=has_active_layers):
         render_parameter_drawer(st.session_state.get("selected_layer_id"))
 
-    # Expander 3: Comparative Image Histograms (Input vs Output)
+    # Expander 3: Vector Multi-Shape Cropper Studio
+    render_cropper_dock(raw_base_image, processed_image)
+
+    # Expander 4: Pro Image Compressor (Lossless & Deep Lossy with Quality Slider)
+    render_compressor_dock(raw_base_image, processed_image)
+
+    # Expander 5: Comparative Image Histograms (Input vs Output)
     render_histogram_dock(raw_base_image, processed_image)
 
-    # Expander 4: Export Studio & Pipeline Recipe
+    # Expander 6: Export Studio & Pipeline Recipe
     with st.expander("💾 **Export Studio & Pipeline Recipe**", expanded=False):
         exp_col1, exp_col2, exp_col3 = st.columns([1.2, 1.2, 1.4])
 
         with exp_col1:
             st.markdown("<div style='font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;'>📸 Export Processed Image</div>", unsafe_allow_html=True)
+            is_rgba = (processed_image.ndim == 3 and processed_image.shape[2] == 4)
             is_rgb = (processed_image.ndim == 3 and processed_image.shape[2] == 3)
-            out_bgr = cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR) if is_rgb else processed_image
+            if is_rgba:
+                out_bgr = cv2.cvtColor(processed_image, cv2.COLOR_RGBA2BGRA)
+            elif is_rgb:
+                out_bgr = cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR)
+            else:
+                out_bgr = processed_image
             success, encoded_img = cv2.imencode('.png', out_bgr)
             if success:
                 st.download_button(

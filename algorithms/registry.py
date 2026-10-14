@@ -16,6 +16,7 @@ import algorithms.segmentation as seg
 import algorithms.morphology as morph
 import algorithms.frequency as freq
 import algorithms.artistic as art
+import algorithms.compression as comp
 
 # Domain definitions mapping academic syllabi to modern professional roles
 DOMAINS = {
@@ -23,7 +24,7 @@ DOMAINS = {
         "name": "1. Geometric & Spatial Foundations",
         "title": "1. Geometric & Spatial Foundations",
         "unit": "Unit 1",
-        "description": "Spatial discretization, sampling resolutions, bit-depth quantization, affine transformations, canvas geometry, and lens distortion."
+        "description": "Spatial discretization, sampling resolutions, bit-depth quantization, affine transformations, canvas geometry, lens distortion, and vector shape cropping."
     },
     "radiometric": {
         "name": "2. Radiometric & Contrast Calibration",
@@ -60,6 +61,12 @@ DOMAINS = {
         "title": "7. Creative FX & Photoshop Studio",
         "unit": "Creative Studio",
         "description": "Professional creative filters, Photoshop artistic effects (Pencil Sketch, Cartoonify, Bas-Relief Emboss, Radial Vignette, Tilt-Shift Miniature)."
+    },
+    "compression": {
+        "name": "8. Information Redundancy & Image Compression",
+        "title": "8. Information Redundancy & Image Compression",
+        "unit": "Unit 8",
+        "description": "Coding redundancy, interpixel correlation, psychovisual quantization, 8x8 block Discrete Cosine Transform (DCT) JPEG simulation, and color quantization."
     }
 }
 
@@ -160,6 +167,30 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         "params": {
             "tilt_x": {"type": "float", "label": "Horizontal Keystone Tilt", "default": 0.10, "min": -0.40, "max": 0.40, "step": 0.02},
             "tilt_y": {"type": "float", "label": "Vertical Keystone Tilt", "default": 0.0, "min": -0.40, "max": 0.40, "step": 0.02}
+        }
+    },
+    "geo_shape_crop": {
+        "name": "Vector Multi-Shape Cropper",
+        "domain": "geometry",
+        "func": geo.vector_shape_crop,
+        "input_contract": "ANY",
+        "output_contract": "SAME",
+        "formula": r"I_{crop}(x, y) = I(x, y) \cdot M_{shape}(x, y)",
+        "summary": "Crops canvas using analytical geometric shapes (Circle, Square, Rectangle, Ellipse, Triangle, Diamond, Hexagon, Octagon, Star, Heart, Polygon) with anti-aliasing and transparency.",
+        "example": "Creates circular avatar profile photos, 1:1 square crops for Instagram, or custom star and heart badge stickers.",
+        "viva_theory": "Analytical vector rasterization utilizing subpixel polygon boundary integration, edge anti-aliasing, Gaussian feathering, and alpha-compositing.",
+        "params": {
+            "shape": {"type": "select", "label": "Crop Geometry Shape", "default": "circle", "options": ["circle", "square", "rectangle", "ellipse", "triangle", "diamond", "hexagon", "octagon", "star", "heart", "polygon"]},
+            "center_x": {"type": "float", "label": "Center X Position", "default": 0.50, "min": 0.0, "max": 1.0, "step": 0.02},
+            "center_y": {"type": "float", "label": "Center Y Position", "default": 0.50, "min": 0.0, "max": 1.0, "step": 0.02},
+            "size": {"type": "float", "label": "Shape Radius / Scale", "default": 0.80, "min": 0.10, "max": 1.50, "step": 0.05},
+            "aspect_ratio": {"type": "select", "label": "Aspect Ratio Preset", "default": "1:1", "options": ["1:1", "4:3", "16:9", "3:2", "9:16", "freeform"]},
+            "rotation": {"type": "float", "label": "Rotation Angle (°)", "default": 0.0, "min": -180.0, "max": 180.0, "step": 5.0},
+            "feather": {"type": "int", "label": "Edge Feathering Softness (px)", "default": 0, "min": 0, "max": 50, "step": 1},
+            "bg_fill": {"type": "select", "label": "Background Fill Mode", "default": "transparent", "options": ["transparent", "black", "white", "studio_dark"]},
+            "tight_crop": {"type": "bool", "label": "Crop Tight to Bounding Box", "default": True},
+            "sides": {"type": "int", "label": "Polygon Sides (if N-gon)", "default": 5, "min": 3, "max": 16, "step": 1},
+            "star_inner_ratio": {"type": "float", "label": "Star Inner Radius Ratio", "default": 0.382, "min": 0.15, "max": 0.85, "step": 0.05}
         }
     },
 
@@ -1082,5 +1113,40 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
             "focus_height": {"type": "float", "label": "Sharp Focal Band Width", "default": 0.25, "min": 0.05, "max": 0.50, "step": 0.05},
             "blur_amount": {"type": "int", "label": "Defocus Blur Strength", "default": 17, "min": 5, "max": 45, "step": 2}
         }
+    },
+
+    # -----------------------------
+    # DOMAIN 8: COMPRESSION & REDUNDANCY
+    # -----------------------------
+    "comp_dct_jpeg": {
+        "name": "Academic DCT 8x8 Block JPEG Simulation",
+        "domain": "compression",
+        "func": comp.dct_block_jpeg_simulation,
+        "input_contract": "ANY",
+        "output_contract": "SAME",
+        "formula": r"F(u, v) = \frac{1}{4} C(u)C(v) \sum_{x=0}^{7}\sum_{y=0}^{7} f(x,y)\cos\frac{(2x+1)u\pi}{16}\cos\frac{(2y+1)v\pi}{16}",
+        "summary": "Textbook 8x8 block Discrete Cosine Transform (DCT) JPEG baseline compression with psychovisual quantization matrix scaling.",
+        "example": "Demonstrates lossy 8x8 blocking artifacts and high-frequency coefficient truncation as quality is lowered from 100% down to 5%.",
+        "viva_theory": "Forward 2D-DCT transforms spatial intensity correlations into orthogonal spatial frequencies. High frequencies are aggressively quantized based on the Human Visual System contrast sensitivity function.",
+        "params": {
+            "quality": {"type": "int", "label": "JPEG Quality Factor (1-100)", "default": 35, "min": 1, "max": 100, "step": 1},
+            "block_size": {"type": "int", "label": "DCT Block Dimension (px)", "default": 8, "min": 8, "max": 16, "step": 8}
+        }
+    },
+    "comp_quantization": {
+        "name": "Paletted Color Quantization (PNG-8 / GIF)",
+        "domain": "compression",
+        "func": comp.paletted_color_quantization,
+        "input_contract": "ANY",
+        "output_contract": "RGB",
+        "formula": r"C_{quant} = \text{argmin}_{c \in \mathcal{P}} \|C_{in} - c\|^2",
+        "summary": "Reduces 24-bit full-color images (16.7M colors) into 2 to 256 indexed palette colors via Median Cut clustering and Floyd-Steinberg error diffusion.",
+        "example": "Simulates classic GIF / 8-bit PNG palette compression with retro dithered color gradients.",
+        "viva_theory": "Paletted color quantization clusters RGB color space into optimal Voronoi centroids, replacing 24-bit RGB pixel representations with compact 8-bit palette indices.",
+        "params": {
+            "num_colors": {"type": "int", "label": "Color Palette Size", "default": 32, "min": 2, "max": 256, "step": 2},
+            "dither": {"type": "bool", "label": "Floyd-Steinberg Dithering", "default": True}
+        }
     }
 }
+

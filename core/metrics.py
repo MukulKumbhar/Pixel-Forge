@@ -69,7 +69,9 @@ def calculate_entropy(image: np.ndarray) -> float:
     H = - sum_{k} p(k) * log2(p(k))
     Quantifies average information content and contrast richness (in bits/pixel).
     """
-    if image.ndim == 3:
+    if image.ndim == 3 and image.shape[2] == 4:
+        gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+    elif image.ndim == 3:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     else:
         gray = image.squeeze()
@@ -88,12 +90,15 @@ def compute_histograms(image: np.ndarray) -> dict:
     Returns dictionary with channel keys: 'r', 'g', 'b', or 'luminance'.
     """
     bins = 256
-    if image.ndim == 3 and image.shape[2] == 3:
+    if image.ndim == 3 and image.shape[2] >= 3:
         hist_r, _ = np.histogram(image[:, :, 0], bins=bins, range=[0, 256])
         hist_g, _ = np.histogram(image[:, :, 1], bins=bins, range=[0, 256])
         hist_b, _ = np.histogram(image[:, :, 2], bins=bins, range=[0, 256])
         # Luminance
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        if image.shape[2] == 4:
+            gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
+        else:
+            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         hist_l, _ = np.histogram(gray, bins=bins, range=[0, 256])
         return {
             "mode": "rgb",
@@ -115,10 +120,16 @@ def _align_image_shapes(img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarra
     """
     Helper to align spatial dimensions and channels if a pipeline step altered them.
     """
+    # Normalize RGBA to RGB for metric comparisons
+    if img_a.ndim == 3 and img_a.shape[2] == 4:
+        img_a = cv2.cvtColor(img_a, cv2.COLOR_RGBA2RGB)
+    if img_b.ndim == 3 and img_b.shape[2] == 4:
+        img_b = cv2.cvtColor(img_b, cv2.COLOR_RGBA2RGB)
+
     ha, wa = img_a.shape[:2]
     hb, wb = img_b.shape[:2]
 
-    # Resize img_b to match img_a if dimensions changed (e.g. downsampling)
+    # Resize img_b to match img_a if dimensions changed (e.g. downsampling or cropping)
     if (ha, wa) != (hb, wb):
         img_b = cv2.resize(img_b, (wa, ha), interpolation=cv2.INTER_LINEAR)
 

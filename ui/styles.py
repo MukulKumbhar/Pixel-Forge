@@ -290,6 +290,22 @@ div[data-testid="stExpander"] summary:hover {
 div[data-testid="stExpander"] div[role="region"] {
     padding: 0.8rem 1.2rem 1.2rem 1.2rem !important;
 }
+
+/* Stat & Telemetry Glow Indicators */
+.stat-glow-green {
+    color: #10b981 !important;
+    text-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.stat-glow-cyan {
+    color: #06b6d4 !important;
+    text-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+}
+
+.stat-glow-purple {
+    color: #a855f7 !important;
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+}
 </style>
 """
 
