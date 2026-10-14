@@ -97,7 +97,7 @@ def render_filter_catalog():
 
     with col_algo:
         domain_algos = {
-            k: f"{v['name']} ({v.get('input_contract', 'ANY')} → {v.get('output_contract', 'SAME')})"
+            k: v.get("friendly_name", v["name"])
             for k, v in ALGORITHM_REGISTRY.items()
             if v.get("domain") == sel_domain
         }
@@ -105,32 +105,49 @@ def render_filter_catalog():
         if st.session_state.get("catalog_sel_algo") not in domain_algo_keys and domain_algo_keys:
             st.session_state["catalog_sel_algo"] = domain_algo_keys[0]
 
+        cur_selected_algo = st.session_state.get("catalog_sel_algo", domain_algo_keys[0] if domain_algo_keys else None)
+        cur_algo_meta = ALGORITHM_REGISTRY.get(cur_selected_algo, {}) if cur_selected_algo else {}
+        algo_tooltip = cur_algo_meta.get("tooltip", cur_algo_meta.get("simple_description", "Choose a filter to add to the pipeline."))
+
         sel_algo = st.selectbox(
-            "Select Algorithm",
+            "Choose Filter / Tool",
             options=domain_algo_keys,
             format_func=lambda k: domain_algos[k],
-            key="catalog_sel_algo"
+            key="catalog_sel_algo",
+            help=algo_tooltip
         )
 
     # Algorithm detail micro-card
     meta = ALGORITHM_REGISTRY.get(sel_algo, {})
-    summary = meta.get("summary", "")
+    friendly_name = meta.get("friendly_name", meta.get("name", ""))
+    academic_name = meta.get("name", "")
+    simple_desc = meta.get("simple_description", meta.get("summary", ""))
     example = meta.get("example", "")
     in_contract = meta.get("input_contract", "ANY")
     out_contract = meta.get("output_contract", "SAME")
+    formula = meta.get("formula", "")
+    viva_theory = meta.get("viva_theory", meta.get("summary", ""))
 
     detail_col1, detail_col2 = st.columns([3, 1.2])
     with detail_col1:
-        example_html = f"<div style='margin-top: 4px;'><span class='example-title'>🎯 Practical Example:</span> {example}</div>" if example else ""
+        example_html = f"<div style='margin-top: 5px;'><span class='example-title'>🎯 Real-World Use:</span> <span style='color: #cbd5e1;'>{example}</span></div>" if example else ""
         st.markdown(
             f"""
             <div class="filter-micro-info" style="margin-bottom: 0.6rem;">
-                <div><span class="info-title">💡 What it does:</span> {summary}</div>
+                <div><span class="info-title">💡 What this filter does:</span> <span style="color: #f1f5f9; font-weight: 500;">{simple_desc}</span></div>
                 {example_html}
             </div>
             """,
             unsafe_allow_html=True
         )
+
+        with st.expander(f"🔬 **Academic Algorithm Details: {academic_name}**", expanded=False):
+            st.markdown(f"**Academic Title:** `{academic_name}` • **Domain:** `{meta.get('domain', '').capitalize()}`")
+            if formula:
+                st.markdown("**Mathematical Model:**")
+                st.latex(formula)
+            if viva_theory:
+                st.markdown(f"**DIP Syllabus / Viva Notes:**\n> {viva_theory}")
 
     with detail_col2:
         st.markdown(
@@ -177,7 +194,7 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
     if st.session_state.get("param_active_stage_select") not in layer_ids or st.session_state.get("param_active_stage_select") != selected_layer_id:
         st.session_state["param_active_stage_select"] = selected_layer_id
 
-    layer_map = {l["id"]: f"Stage {i+1}: {l['name']}" for i, l in enumerate(stack)}
+    layer_map = {l["id"]: f"Stage {i+1}: {l.get('friendly_name', l['name'])}" for i, l in enumerate(stack)}
 
     col_sel, col_bridge, col_reset = st.columns([2.5, 1.3, 1])
     with col_sel:
@@ -186,7 +203,8 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
             options=layer_ids,
             format_func=lambda lid: layer_map.get(lid, lid),
             key="param_active_stage_select",
-            on_change=_on_stage_select
+            on_change=_on_stage_select,
+            help="Switch between active stages to tune sliders or reset parameters."
         )
 
     # Find active layer
@@ -220,23 +238,34 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
             st.rerun()
 
     # Micro-info card for active filter
-    summary = meta.get("summary", "")
+    simple_desc = meta.get("simple_description", meta.get("summary", ""))
     example = meta.get("example", "")
-    if summary or example:
-        example_html = f"<div style='margin-top: 3px;'><span class='example-title'>🎯 Example:</span> {example}</div>" if example else ""
+    academic_name = meta.get("name", "")
+    formula = meta.get("formula", "")
+    viva_theory = meta.get("viva_theory", meta.get("summary", ""))
+
+    if simple_desc or example:
+        example_html = f"<div style='margin-top: 3px;'><span class='example-title'>🎯 Real-World Use:</span> <span style='color: #cbd5e1;'>{example}</span></div>" if example else ""
         st.markdown(
             f"""
             <div class="filter-micro-info">
-                <div><span class="info-title">💡 What it does:</span> {summary}</div>
+                <div><span class="info-title">💡 What it does:</span> <span style="color: #f1f5f9; font-weight: 500;">{simple_desc}</span></div>
                 {example_html}
             </div>
             """,
             unsafe_allow_html=True
         )
+        with st.expander(f"🔬 **Academic Algorithm Info: {academic_name}**", expanded=False):
+            st.markdown(f"**Academic Reference:** `{academic_name}`")
+            if formula:
+                st.markdown("**Mathematical Formulation:**")
+                st.latex(formula)
+            if viva_theory:
+                st.markdown(f"**Theory & Concept:**\n> {viva_theory}")
 
     # Hot-swapping row
     domain_algos = {
-        k: v["name"] for k, v in ALGORITHM_REGISTRY.items() if v.get("domain") == domain_key
+        k: v.get("friendly_name", v["name"]) for k, v in ALGORITHM_REGISTRY.items() if v.get("domain") == domain_key
     }
     if algo_key in domain_algos:
         hs_col1, hs_col2 = st.columns([2, 1])
@@ -245,12 +274,13 @@ def render_parameter_drawer(selected_layer_id: Optional[str] = None):
             if hs_key not in st.session_state or st.session_state[hs_key] not in domain_algos:
                 st.session_state[hs_key] = algo_key
             st.selectbox(
-                "Hot-Swap Algorithm within Domain",
+                "Hot-Swap with Another Filter in this Category",
                 options=list(domain_algos.keys()),
                 format_func=lambda k: domain_algos[k],
                 key=hs_key,
                 on_change=_on_hotswap_change,
-                args=(layer["id"], hs_key)
+                args=(layer["id"], hs_key),
+                help="Swap this stage with any other filter in the same category without losing your place in the pipeline."
             )
         with hs_col2:
             st.markdown(

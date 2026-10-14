@@ -204,3 +204,82 @@ def test_large_image_handling():
     assert comp_res["space_saved_percent"] > 0
     assert comp_res["mse"] == 0.0
 
+
+def test_crop_reset_preserves_other_pipeline_layers(sample_rgb_image):
+    """
+    Verifies that removing / resetting crop layers completely restores the
+    full original uncropped scale WITHOUT disturbing, deleting, or altering
+    any other active filters in the pipeline stack.
+    """
+    import streamlit as st
+    from core.state_manager import init_session_state, has_crop_layer, remove_crop_layers_from_stack
+    from algorithms.registry import ALGORITHM_REGISTRY
+
+    init_session_state()
+
+    # Build multi-layer stack: Brightness -> Shape Crop -> Bilateral Blur -> Sepia
+    layer1 = create_layer_dict("rad_brightness_contrast", {"brightness": 25, "contrast": 30})
+    layer2 = create_layer_dict("geo_shape_crop", {"shape": "circle", "size": 0.5, "tight_crop": True})
+    layer3 = create_layer_dict("rest_bilateral", {"d": 5, "sigma_color": 50.0})
+    layer4 = create_layer_dict("col_sepia", {"strength": 0.8})
+
+    st.session_state.active_layer_stack = [layer1, layer2, layer3, layer4]
+    st.session_state.selected_layer_id = layer2["id"]
+
+    assert has_crop_layer() is True
+    assert len(st.session_state.active_layer_stack) == 4
+
+    # Run pipeline with crop active
+    res_cropped = execute_pipeline(sample_rgb_image, st.session_state.active_layer_stack)
+    # Output should be cropped to smaller bounding box
+    assert res_cropped.output_image.shape[0] < sample_rgb_image.shape[0]
+
+    # Now execute Crop Reset
+    remove_crop_layers_from_stack()
+
+    # Verify crop layer is gone but all other 3 filters remain intact in order
+    assert has_crop_layer() is False
+    remaining_stack = st.session_state.active_layer_stack
+    assert len(remaining_stack) == 3
+
+    assert remaining_stack[0]["algorithm_key"] == "rad_brightness_contrast"
+    assert remaining_stack[0]["params"]["brightness"] == 25
+    assert remaining_stack[0]["params"]["contrast"] == 30
+
+    assert remaining_stack[1]["algorithm_key"] == "rest_bilateral"
+    assert remaining_stack[1]["params"]["d"] == 5
+
+    assert remaining_stack[2]["algorithm_key"] == "col_sepia"
+    assert remaining_stack[2]["params"]["strength"] == 0.8
+
+    # Re-run pipeline: Output image must have full original dimensions restored
+    res_restored = execute_pipeline(sample_rgb_image, remaining_stack)
+    assert res_restored.output_image.shape[:2] == sample_rgb_image.shape[:2]
+    # And the filters were still applied (image is modified compared to raw input)
+    assert not np.array_equal(res_restored.output_image, sample_rgb_image)
+
+
+def test_all_algorithms_have_friendly_names_and_descriptions():
+    """
+    Verifies that all 69 DIP algorithms in ALGORITHM_REGISTRY have consumer-friendly
+    names, plain-language descriptions, and hover tooltips for global users.
+    """
+    from algorithms.registry import ALGORITHM_REGISTRY, DOMAINS
+
+    assert len(ALGORITHM_REGISTRY) >= 69
+
+    for key, meta in ALGORITHM_REGISTRY.items():
+        assert "friendly_name" in meta, f"Missing friendly_name for {key}"
+        assert len(meta["friendly_name"].strip()) > 0, f"Empty friendly_name for {key}"
+
+        assert "simple_description" in meta, f"Missing simple_description for {key}"
+        assert len(meta["simple_description"].strip()) > 0, f"Empty simple_description for {key}"
+
+        assert "tooltip" in meta, f"Missing tooltip for {key}"
+        assert len(meta["tooltip"].strip()) > 0, f"Empty tooltip for {key}"
+
+        assert "name" in meta, f"Missing academic name for {key}"
+        assert "domain" in meta, f"Missing domain for {key}"
+        assert meta["domain"] in DOMAINS, f"Invalid domain {meta['domain']} for {key}"
+
+

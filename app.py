@@ -18,11 +18,13 @@ from core.state_manager import (
     PRESETS,
     add_layer_to_stack,
     clear_layer_stack,
+    has_crop_layer,
     init_session_state,
     load_preset,
     move_layer_down,
     move_layer_up,
     redo,
+    remove_crop_layers_from_stack,
     remove_layer,
     toggle_layer_autoconvert,
     toggle_layer_enabled,
@@ -95,7 +97,7 @@ def main():
     # -------------------------------------------------------------
     # 2. IMAGE LOADER & TOP WORKSPACE BAR
     # -------------------------------------------------------------
-    top_col1, top_col2, top_col3 = st.columns([1.6, 1.6, 1.2])
+    top_col1, top_col2, top_col3 = st.columns([1.6, 1.6, 1.3])
 
     with top_col1:
         sample_options = {
@@ -180,8 +182,14 @@ def main():
         raw_base_image = master_raw_image
 
     with top_col3:
-        st.markdown("<div style='font-size: 0.82rem; font-weight: 700; color: #94a3b8; margin-bottom: 7px;'>PIPELINE HISTORY</div>", unsafe_allow_html=True)
-        undo_col, redo_col, reset_col = st.columns(3)
+        st.markdown("<div style='font-size: 0.82rem; font-weight: 700; color: #94a3b8; margin-bottom: 7px;'>PIPELINE CONTROLS</div>", unsafe_allow_html=True)
+        is_crop_present = has_crop_layer()
+        if is_crop_present:
+            undo_col, redo_col, crop_reset_col, reset_col = st.columns([1, 1, 1.4, 1])
+        else:
+            undo_col, redo_col, reset_col = st.columns(3)
+            crop_reset_col = None
+
         with undo_col:
             can_undo = len(st.session_state.get("history_stack", [])) > 0
             if st.button("↩ Undo", disabled=not can_undo, use_container_width=True):
@@ -192,6 +200,11 @@ def main():
             if st.button("↪ Redo", disabled=not can_redo, use_container_width=True):
                 redo()
                 st.rerun()
+        if crop_reset_col is not None:
+            with crop_reset_col:
+                if st.button("✂️ Reset Crop", use_container_width=True, help="Remove crop and restore full canvas scale without disturbing any other active filters!"):
+                    remove_crop_layers_from_stack()
+                    st.rerun()
         with reset_col:
             if st.button("🗑️ Reset", use_container_width=True, help="Clear active layer stack"):
                 clear_layer_stack()
@@ -245,6 +258,9 @@ def main():
                 is_enabled = layer.get("enabled", True)
                 algo_meta = ALGORITHM_REGISTRY.get(layer.get("algorithm_key"), {})
                 in_c = algo_meta.get("input_contract", "ANY")
+                friendly_title = layer.get("friendly_name", layer.get("name", "Unknown Stage"))
+                academic_sub = layer.get("algo_name", algo_meta.get("name", ""))
+                is_this_crop = (layer.get("algorithm_key") == "geo_shape_crop")
 
                 card_class = "layer-card"
                 if is_selected:
@@ -253,14 +269,18 @@ def main():
                     card_class += " bypassed"
 
                 with st.container():
+                    crop_badge = '<span class="badge badge-rgb" style="font-size: 0.68rem; margin-right: 4px;">✂️ CROP</span>' if is_this_crop else ''
                     st.markdown(
                         f"""
                         <div class="{card_class}">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                <strong style="font-size: 0.92rem; color: #f8fafc;">
-                                    {idx + 1}. {layer['name']}
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
+                                <strong style="font-size: 0.88rem; color: #f8fafc;">
+                                    {idx + 1}. {friendly_title}
                                 </strong>
-                                <span class="badge badge-unit">{in_c}</span>
+                                <div>{crop_badge}<span class="badge badge-unit">{in_c}</span></div>
+                            </div>
+                            <div style="font-size: 0.73rem; color: #94a3b8; margin-top: 1px;">
+                                🔬 {academic_sub}
                             </div>
                         </div>
                         """,

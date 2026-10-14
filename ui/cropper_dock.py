@@ -13,7 +13,7 @@ from PIL import Image
 import io
 
 from algorithms.geometry import vector_shape_crop
-from core.state_manager import add_layer_to_stack
+from core.state_manager import add_layer_to_stack, has_crop_layer, remove_crop_layers_from_stack
 
 
 def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, master_image: Optional[np.ndarray] = None):
@@ -43,6 +43,30 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
             unsafe_allow_html=True
         )
 
+        # Active crop detection banner & 1-click restore full scale button
+        is_crop_active = has_crop_layer()
+        if is_crop_active:
+            st.markdown(
+                """
+                <div style="background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.4); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="color: #facc15; font-weight: 700; font-size: 0.92rem;">✂️ Shape Crop is Active in Pipeline Stack</span>
+                        <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: #cbd5e1;">
+                            The image canvas is currently cropped by a pipeline stage. You can reset it back to full uncropped scale without disturbing any other filters!
+                        </p>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            if st.button("🔄 Reset Crop & Restore Full Normal Scale (Keeps all other filters intact!)", key="btn_reset_crop_top", type="primary", use_container_width=True):
+                remove_crop_layers_from_stack()
+                st.session_state["cropper_shape_select"] = "Rectangle (Custom Ratio)"
+                st.session_state["cropper_size_slider"] = 1.00
+                st.session_state["cropper_tight_chk"] = False
+                st.success("Canvas scale restored to normal! All other filters remain 100% active.")
+                st.rerun()
+
         # Source Frame Selection & Quick Presets
         src_col, preset_col = st.columns([1, 2.2])
         with src_col:
@@ -65,7 +89,19 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
 
         with preset_col:
             st.markdown("<div style='font-size: 0.82rem; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;'>QUICK SHAPE PRESETS:</div>", unsafe_allow_html=True)
-            p_c1, p_c2, p_c3, p_c4, p_c5, p_c6 = st.columns(6)
+            p_c0, p_c1, p_c2, p_c3, p_c4, p_c5, p_c6 = st.columns([1.2, 1, 1, 1, 1, 1, 1])
+
+            with p_c0:
+                if st.button("↺ Full Canvas", use_container_width=True, help="Reset shape controls to uncropped full canvas (100% scale, no crop)"):
+                    st.session_state["cropper_shape_select"] = "Rectangle (Custom Ratio)"
+                    st.session_state["cropper_size_slider"] = 1.00
+                    st.session_state["cropper_cx_slider"] = 0.50
+                    st.session_state["cropper_cy_slider"] = 0.50
+                    st.session_state["cropper_rot_slider"] = 0.0
+                    st.session_state["cropper_feather_slider"] = 0
+                    st.session_state["cropper_tight_chk"] = False
+                    st.session_state["cropper_aspect_select"] = "freeform"
+                    st.rerun()
 
             with p_c1:
                 if st.button("⭕ Avatar", use_container_width=True, help="Circular avatar profile"):
@@ -266,10 +302,14 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
             st.image(cropped_output, width="stretch")
 
         # -------------------------------------------------------------
-        # ACTIONS: DOWNLOAD & ADD TO PIPELINE
+        # ACTIONS: DOWNLOAD, ADD TO PIPELINE & RESET CROP
         # -------------------------------------------------------------
         st.write("")
-        act_col1, act_col2 = st.columns(2)
+        if is_crop_active:
+            act_col1, act_col2, act_col3 = st.columns([1.1, 1.4, 1.4])
+        else:
+            act_col1, act_col2 = st.columns([1.1, 1.8])
+            act_col3 = None
 
         with act_col1:
             # Encode to PNG preserving alpha channel
@@ -284,7 +324,7 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
 
             if success:
                 st.download_button(
-                    label=f"⬇️ Download Cropped Shape ({shape_name.capitalize()} PNG with Alpha)",
+                    label=f"⬇️ Download ({shape_name.capitalize()} PNG)",
                     data=encoded_png.tobytes(),
                     file_name=f"pixel_forge_{shape_name}_crop.png",
                     mime="image/png",
@@ -292,21 +332,40 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
                     type="primary"
                 )
 
+        crop_params = {
+            "shape": shape_name,
+            "center_x": center_x,
+            "center_y": center_y,
+            "size": size_val,
+            "aspect_ratio": aspect_choice,
+            "rotation": rotation_deg,
+            "feather": feather_px,
+            "bg_fill": bg_key,
+            "tight_crop": tight_crop_val,
+            "sides": sides_val,
+            "star_inner_ratio": star_ratio
+        }
+
         with act_col2:
-            if st.button("➕ Add Shape Crop Stage to Pipeline Stack", use_container_width=True, type="secondary"):
-                crop_params = {
-                    "shape": shape_name,
-                    "center_x": center_x,
-                    "center_y": center_y,
-                    "size": size_val,
-                    "aspect_ratio": aspect_choice,
-                    "rotation": rotation_deg,
-                    "feather": feather_px,
-                    "bg_fill": bg_key,
-                    "tight_crop": tight_crop_val,
-                    "sides": sides_val,
-                    "star_inner_ratio": star_ratio
-                }
-                add_layer_to_stack("geo_shape_crop", crop_params)
-                st.success(f"Added '{shape_name.capitalize()}' Crop stage to pipeline!")
+            btn_label = "🔄 Update Active Crop in Pipeline" if is_crop_active else "➕ Add Shape Crop Stage to Pipeline"
+            if st.button(btn_label, use_container_width=True, type="secondary"):
+                crop_layers = [l for l in st.session_state.get("active_layer_stack", []) if l.get("algorithm_key") == "geo_shape_crop"]
+                if crop_layers:
+                    crop_layers[0]["params"] = crop_params
+                    crop_layers[0]["name"] = f"Cut into {shape_name.capitalize()}"
+                    crop_layers[0]["friendly_name"] = f"Cut into {shape_name.capitalize()}"
+                    st.success(f"Updated '{shape_name.capitalize()}' Crop in pipeline!")
+                else:
+                    add_layer_to_stack("geo_shape_crop", crop_params)
+                    st.success(f"Added '{shape_name.capitalize()}' Crop stage to pipeline!")
                 st.rerun()
+
+        if act_col3 is not None:
+            with act_col3:
+                if st.button("🔄 Reset Crop (Restore Full Canvas)", use_container_width=True, type="primary", help="Completely removes crop and restores normal image scale without disturbing any other filters!"):
+                    remove_crop_layers_from_stack()
+                    st.session_state["cropper_shape_select"] = "Rectangle (Custom Ratio)"
+                    st.session_state["cropper_size_slider"] = 1.00
+                    st.session_state["cropper_tight_chk"] = False
+                    st.success("Canvas scale restored! All other filters remain 100% active.")
+                    st.rerun()

@@ -22,49 +22,49 @@ import algorithms.compression as comp
 DOMAINS = {
     "geometry": {
         "name": "1. Geometric & Spatial Foundations",
-        "title": "1. Geometric & Spatial Foundations",
+        "title": "📐 Size, Position & Shapes (Geometric)",
         "unit": "Unit 1",
         "description": "Spatial discretization, sampling resolutions, bit-depth quantization, affine transformations, canvas geometry, lens distortion, and vector shape cropping."
     },
     "radiometric": {
         "name": "2. Radiometric & Contrast Calibration",
-        "title": "2. Radiometric & Contrast Calibration",
+        "title": "☀️ Brightness, Contrast & Tone (Radiometric)",
         "unit": "Unit 2",
         "description": "Point transformations, tone mapping, dynamic range expansion, transfer functions, cumulative distribution processing, and posterization."
     },
     "restoration": {
         "name": "3. Stochastic Denoising & Image Restoration",
-        "title": "3. Stochastic Denoising & Image Restoration",
+        "title": "🧼 Denoise, Blur & Sharpen (Restoration)",
         "unit": "Unit 3",
         "description": "Degradation modeling, inverse filtering, spatial order-statistics, Gaussian/motion blur, bilateral smoothing, and unsharp masking."
     },
     "colorimetry": {
         "name": "4. Chromatic Engine & Color Grading",
-        "title": "4. Chromatic Engine & Color Grading",
+        "title": "🎨 Colors & Balance (Colorimetry)",
         "unit": "Unit 4",
         "description": "Color space decomposition (RGB, HSI, CMYK), chromatic adaptation, vector scopes, multi-channel balance, vibrance, sepia, and split-toning."
     },
     "segmentation": {
         "name": "5. Feature Segmentation & Structural Analysis",
-        "title": "5. Feature Segmentation & Structural Analysis",
+        "title": "✂️ Outlines, Edges & Black/White (Segmentation)",
         "unit": "Unit 5",
         "description": "Discontinuity detection, differential edge operators, hysteresis edge linking, parameter-space voting (Hough lines/circles), adaptive thresholding, and Harris corners."
     },
     "morphology": {
         "name": "6. Morphological Mechanics",
-        "title": "6. Morphological Mechanics",
+        "title": "🧱 Shape Mechanics & Cleaning (Morphology)",
         "unit": "Unit 6",
         "description": "Set-theoretic geometry, topological probes (structuring elements), boundary extraction, top-hat, black-hat, and hit-or-miss transforms."
     },
     "artistic": {
         "name": "7. Creative FX & Photoshop Studio",
-        "title": "7. Creative FX & Photoshop Studio",
+        "title": "✨ Artistic & Creative FX (Photoshop Studio)",
         "unit": "Creative Studio",
         "description": "Professional creative filters, Photoshop artistic effects (Pencil Sketch, Cartoonify, Bas-Relief Emboss, Radial Vignette, Tilt-Shift Miniature)."
     },
     "compression": {
         "name": "8. Information Redundancy & Image Compression",
-        "title": "8. Information Redundancy & Image Compression",
+        "title": "🗜️ Compress & Reduce File Size (Compression)",
         "unit": "Unit 8",
         "description": "Coding redundancy, interpixel correlation, psychovisual quantization, 8x8 block Discrete Cosine Transform (DCT) JPEG simulation, and color quantization."
     }
@@ -76,6 +76,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "geo_sampling": {
         "name": "Spatial Sampling & Discretization",
+        "friendly_name": "Pixelate / Lower Resolution",
+        "simple_description": "Reduces pixel count to create retro pixel art or test downsampling resolution.",
+        "tooltip": "Shrink pixel resolution or simulate retro pixelated gaming art.",
         "domain": "geometry",
         "func": geo.spatial_downsample_upsample,
         "input_contract": "ANY",
@@ -91,6 +94,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "geo_quantization": {
         "name": "Bit-Depth Quantization",
+        "friendly_name": "Retro Bit-Depth (Pixel Art / Posterize)",
+        "simple_description": "Reduces color steps from 8-bit down to 1-bit for vintage arcade / retro poster visuals.",
+        "tooltip": "Reduce color bit-depth to create vintage arcade / retro computer visuals.",
         "domain": "geometry",
         "func": geo.bit_depth_quantization,
         "input_contract": "ANY",
@@ -105,6 +111,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "geo_affine": {
         "name": "Composite Affine Transformation",
+        "friendly_name": "Rotate, Scale, Shift & Tilt",
+        "simple_description": "Rotate canvas by degrees, zoom in/out, shift position, or apply 2D slant skew.",
+        "tooltip": "Rotate, scale, translate, or shear the canvas in 2D space.",
         "domain": "geometry",
         "func": geo.affine_transform,
         "input_contract": "ANY",
@@ -125,6 +134,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "geo_canvas_resize": {
         "name": "Canvas Resize & Letterbox Fitting",
+        "friendly_name": "Resize Canvas & Letterbox",
+        "simple_description": "Changes image resolution with clean aspect-ratio preservation and letterbox borders.",
+        "tooltip": "Resize canvas to custom pixel dimensions with optional letterboxing.",
         "domain": "geometry",
         "func": geo.canvas_resize,
         "input_contract": "ANY",
@@ -141,6 +153,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "geo_lens_distortion": {
         "name": "Optical Lens Distortion (Fisheye/Pincushion)",
+        "friendly_name": "Fisheye & Action-Cam Warp",
+        "simple_description": "Simulates curved GoPro fisheye action-cam bubble or corrects barrel distortion.",
+        "tooltip": "Apply curved fisheye bubble or correct wide-angle lens distortion.",
         "domain": "geometry",
         "func": geo.lens_distortion,
         "input_contract": "ANY",
@@ -156,6 +171,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "geo_perspective": {
         "name": "Perspective Keystone Quad Transform",
+        "friendly_name": "Straighten Angle / Perspective",
+        "simple_description": "Fixes tilted angles or keystone distortion from angled photos and document scans.",
+        "tooltip": "Correct keystoning or simulate tilted viewpoint angles.",
         "domain": "geometry",
         "func": geo.perspective_keystone,
         "input_contract": "ANY",
@@ -171,6 +189,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "geo_shape_crop": {
         "name": "Vector Multi-Shape Cropper",
+        "friendly_name": "Cut into Shape (Circle, Square, Star, Heart)",
+        "simple_description": "Crops image into 11 geometric vector shapes with smooth feathered edges and alpha transparency.",
+        "tooltip": "Crop canvas into circle, square, star, heart, or polygon with smooth alpha transparency.",
         "domain": "geometry",
         "func": geo.vector_shape_crop,
         "input_contract": "ANY",
@@ -199,6 +220,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "rad_negative": {
         "name": "Digital Photographic Negative",
+        "friendly_name": "Invert Colors / Photo Negative",
+        "simple_description": "Flips bright into dark and dark into bright, just like a classic film negative.",
+        "tooltip": "Flip all image colors into their photographic negative.",
         "domain": "radiometric",
         "func": rad.image_negative,
         "input_contract": "ANY",
@@ -211,6 +235,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_log": {
         "name": "Logarithmic Dynamic Range Compression",
+        "friendly_name": "Brighten Dark Shadows (Log)",
+        "simple_description": "Reveals hidden details in deep dark shadows without overexposing bright highlights.",
+        "tooltip": "Expand dark shadow details while compressing bright highlights.",
         "domain": "radiometric",
         "func": rad.log_transform,
         "input_contract": "ANY",
@@ -225,6 +252,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_gamma": {
         "name": "Power-Law (Gamma) Correction",
+        "friendly_name": "Adjust Midtone Lightness (Gamma)",
+        "simple_description": "Lightens or darkens midtones smoothly while keeping true blacks and whites untouched.",
+        "tooltip": "Tune midtone brightness without shifting black or white points.",
         "domain": "radiometric",
         "func": rad.power_law_gamma,
         "input_contract": "ANY",
@@ -240,6 +270,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_contrast_stretch": {
         "name": "Piecewise-Linear Contrast Stretching",
+        "friendly_name": "Highlight & Shadow Stretcher",
+        "simple_description": "Expands washed-out, narrow gray ranges to make deep blacks and punchy brights.",
+        "tooltip": "Stretch narrow contrast ranges to make faded images punchy and crisp.",
         "domain": "radiometric",
         "func": rad.contrast_stretch_piecewise,
         "input_contract": "ANY",
@@ -257,6 +290,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_bit_plane": {
         "name": "Bit-Plane Slicing",
+        "friendly_name": "Make Bit-Wise Image (Bit Planes 1-8)",
+        "simple_description": "Visualizes individual digital bit layers from subtle noise patterns up to main outlines.",
+        "tooltip": "Inspect specific binary bit-planes from LSB noise to MSB structural outlines.",
         "domain": "radiometric",
         "func": rad.bit_plane_slice,
         "input_contract": "ANY",
@@ -271,6 +307,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_hist_eq": {
         "name": "Histogram Equalization",
+        "friendly_name": "Auto-Enhance Contrast (Histogram Equalize)",
+        "simple_description": "Automatically redistributes lighting tones across the full spectrum for instant maximum clarity.",
+        "tooltip": "Spread tonal brightness across dynamic range automatically.",
         "domain": "radiometric",
         "func": rad.histogram_equalization,
         "input_contract": "ANY",
@@ -283,6 +322,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_hist_spec": {
         "name": "Histogram Specification (Matching)",
+        "friendly_name": "Match Lighting Style (Histogram Match)",
+        "simple_description": "Reshapes image brightness distribution to match a chosen target lighting style.",
+        "tooltip": "Reshape image tones to match a desired lighting distribution profile.",
         "domain": "radiometric",
         "func": rad.histogram_specification,
         "input_contract": "ANY",
@@ -297,6 +339,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_brightness_contrast": {
         "name": "Photoshop Brightness & Contrast",
+        "friendly_name": "Brightness & Contrast",
+        "simple_description": "Classic photo controls to make the picture lighter, darker, punchier, or softer.",
+        "tooltip": "Make the image lighter/darker and increase or decrease contrast punch.",
         "domain": "radiometric",
         "func": rad.brightness_contrast,
         "input_contract": "ANY",
@@ -312,6 +357,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_solarize": {
         "name": "Sabattier Darkroom Solarization",
+        "friendly_name": "Darkroom Solarize (Sabatier Glow)",
+        "simple_description": "Inverts highlight tones above a cutoff to create surreal glowing edge halos.",
+        "tooltip": "Invert highlight tones above a cutoff to create surreal glowing edges.",
         "domain": "radiometric",
         "func": rad.solarize_effect,
         "input_contract": "ANY",
@@ -326,6 +374,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rad_posterize": {
         "name": "Color Posterization Tonal Bands",
+        "friendly_name": "Posterize (Color Bands)",
+        "simple_description": "Reduces continuous color gradients into bold flat graphic art poster bands.",
+        "tooltip": "Reduce tonal levels into distinct flat graphic poster bands.",
         "domain": "radiometric",
         "func": rad.posterize_levels,
         "input_contract": "ANY",
@@ -344,6 +395,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "rest_noise_gaussian": {
         "name": "Additive Gaussian Noise Injection",
+        "friendly_name": "Add Film Grain / Camera Noise",
+        "simple_description": "Injects subtle electronic sensor noise or vintage analogue photographic film grain.",
+        "tooltip": "Inject realistic sensor noise or vintage film grain.",
         "domain": "restoration",
         "func": rest.add_gaussian_noise,
         "input_contract": "ANY",
@@ -359,6 +413,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_noise_sp": {
         "name": "Salt & Pepper (Impulse) Noise",
+        "friendly_name": "Add Speckles (Salt & Pepper Noise)",
+        "simple_description": "Simulates sensor dust or wireless transmission errors with random white and black dots.",
+        "tooltip": "Add random white and black impulse noise speckles.",
         "domain": "restoration",
         "func": rest.add_salt_and_pepper_noise,
         "input_contract": "ANY",
@@ -374,6 +431,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_noise_speckle": {
         "name": "Multiplicative Speckle Noise",
+        "friendly_name": "Add Multiplicative Speckle Noise",
+        "simple_description": "Adds textured grain that scales with brightness, simulating ultrasound scans and radar.",
+        "tooltip": "Simulate intensity-dependent radar or ultrasound speckle grain.",
         "domain": "restoration",
         "func": rest.add_speckle_noise,
         "input_contract": "ANY",
@@ -388,6 +448,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_arithmetic_mean": {
         "name": "Arithmetic Mean Spatial Filter",
+        "friendly_name": "Soft Average Blur (Box Filter)",
+        "simple_description": "Evenly averages neighboring pixels to soften grain, noise, and sharp textures.",
+        "tooltip": "Uniformly smooth and blur neighborhood pixels.",
         "domain": "restoration",
         "func": rest.arithmetic_mean_filter,
         "input_contract": "ANY",
@@ -402,6 +465,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_geometric_mean": {
         "name": "Geometric Mean Spatial Filter",
+        "friendly_name": "Smooth Detail Blur (Geometric Mean)",
+        "simple_description": "Softens noise gently while preserving subtle textures better than simple averaging.",
+        "tooltip": "Gentle smoothing with better edge retention than box averaging.",
         "domain": "restoration",
         "func": rest.geometric_mean_filter,
         "input_contract": "ANY",
@@ -416,6 +482,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_contraharmonic": {
         "name": "Contraharmonic Mean Filter",
+        "friendly_name": "Clean Speckle Noise (Contraharmonic)",
+        "simple_description": "Specialized filter designed to selectively wipe out either dark spots or white specks.",
+        "tooltip": "Erase isolated dark or white impulse noise spots.",
         "domain": "restoration",
         "func": rest.contraharmonic_mean_filter,
         "input_contract": "ANY",
@@ -431,6 +500,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_median": {
         "name": "Order-Statistic Median Filter",
+        "friendly_name": "Remove Dust & Speckles (Median Denoise)",
+        "simple_description": "The gold standard for removing salt-and-pepper dust and scratches without blurring sharp edges.",
+        "tooltip": "Wipe out salt and pepper noise while keeping object edges razor sharp.",
         "domain": "restoration",
         "func": rest.median_filter,
         "input_contract": "ANY",
@@ -445,6 +517,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_alpha_trimmed": {
         "name": "Alpha-Trimmed Mean Filter",
+        "friendly_name": "Clean Heavy Mixed Noise (Alpha-Trimmed)",
+        "simple_description": "Removes extreme grain and random spikes together by ignoring outlier pixels.",
+        "tooltip": "Denoise images corrupted by both grain and impulse speckles.",
         "domain": "restoration",
         "func": rest.alpha_trimmed_mean_filter,
         "input_contract": "ANY",
@@ -460,6 +535,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_order_stats": {
         "name": "Min / Max / Midpoint Filter",
+        "friendly_name": "Shrink or Grow Bright Spots (Min/Max/Mid)",
+        "simple_description": "Shrinks bright spots, expands dark spots, or finds the middle intensity.",
+        "tooltip": "Apply local minimum, maximum, or midpoint order statistics.",
         "domain": "restoration",
         "func": rest.order_statistic_min_max_filter,
         "input_contract": "ANY",
@@ -475,6 +553,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "freq_spectrum": {
         "name": "2D Fourier Magnitude Spectrum",
+        "friendly_name": "View Frequency Waves (2D Fourier FFT)",
+        "simple_description": "Visualizes your image as frequency waves to spot repeating patterns, grids, or noise bars.",
+        "tooltip": "Convert image to 2D Fourier frequency domain magnitude spectrum.",
         "domain": "restoration",
         "func": freq.compute_fft_spectrum,
         "input_contract": "ANY",
@@ -487,6 +568,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "freq_filter": {
         "name": "2D Frequency Domain Filtering (FFT)",
+        "friendly_name": "Frequency Filter (Low-Pass Blur / High-Pass Detail)",
+        "simple_description": "Filters frequencies directly: smooth out waves (Low-Pass) or isolate fine ripples (High-Pass).",
+        "tooltip": "Apply ideal, Butterworth, or Gaussian frequency filters via 2D FFT.",
         "domain": "restoration",
         "func": freq.frequency_domain_filter,
         "input_contract": "ANY",
@@ -504,6 +588,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_gaussian_blur": {
         "name": "Gaussian Spatial Smoothing",
+        "friendly_name": "Smooth Gaussian Blur",
+        "simple_description": "The classic natural, silky blur used in photo editing to defocus backgrounds or clean grain.",
+        "tooltip": "Apply natural, smooth bell-curve Gaussian blurring.",
         "domain": "restoration",
         "func": rest.gaussian_blur,
         "input_contract": "ANY",
@@ -519,6 +606,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_motion_blur": {
         "name": "Directional Motion Blur",
+        "friendly_name": "Action Motion Blur (Speed Streak)",
+        "simple_description": "Adds a directional speed streak effect in any angle to make subjects look like they are zooming.",
+        "tooltip": "Simulate directional camera movement or high-speed subject motion.",
         "domain": "restoration",
         "func": rest.motion_blur,
         "input_contract": "ANY",
@@ -534,6 +624,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_bilateral": {
         "name": "Bilateral Filter (Smart Blur / Skin Retouch)",
+        "friendly_name": "Smooth Skin & Retouch (Smart Bilateral)",
+        "simple_description": "Retouches skin textures to look smooth and flawless while keeping eyes, lips, and hair sharp.",
+        "tooltip": "Smooth facial textures and noise while preserving sharp structural edges.",
         "domain": "restoration",
         "func": rest.bilateral_filter,
         "input_contract": "ANY",
@@ -550,6 +643,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "rest_unsharp_mask": {
         "name": "Photoshop Unsharp Masking (USM)",
+        "friendly_name": "Sharpen Details (Unsharp Mask)",
+        "simple_description": "Crisps up soft edges, fine hairs, and text to make your photo look sharp and high-definition.",
+        "tooltip": "Increase crispness and micro-contrast on textures and edges.",
         "domain": "restoration",
         "func": rest.unsharp_mask,
         "input_contract": "ANY",
@@ -570,6 +666,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "col_3d_lut": {
         "name": "3D Cinematic LUT Color Transform",
+        "friendly_name": "Cinematic Film Looks (3D LUTs)",
+        "simple_description": "Applies blockbuster movie color grading like Hollywood Teal & Orange, Vintage Warm, or Cyberpunk.",
+        "tooltip": "Transform colors using professional 3D film lookup tables.",
         "domain": "colorimetry",
         "func": col.apply_3d_lut,
         "input_contract": "RGB",
@@ -585,6 +684,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_hsi_vector": {
         "name": "HSI Geometric Color Vector Grading",
+        "friendly_name": "Control HSB (Hue, Saturation, Brightness)",
+        "simple_description": "Rotate colors across the rainbow, boost color richness, or adjust lighting smoothly.",
+        "tooltip": "Shift hue angles, scale saturation, and adjust intensity cleanly.",
         "domain": "colorimetry",
         "func": col.hsi_vector_grading,
         "input_contract": "RGB",
@@ -601,6 +703,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_lift_gamma_gain": {
         "name": "Three-Way Color Balancer (Lift/Gamma/Gain)",
+        "friendly_name": "Color Wheels (Shadows, Midtones, Highlights)",
+        "simple_description": "Studio grading wheels to tint shadows, midtones, and highlights independently.",
+        "tooltip": "Independent three-way color control for shadows (Lift), midtones (Gamma), and highlights (Gain).",
         "domain": "colorimetry",
         "func": col.three_way_lift_gamma_gain,
         "input_contract": "RGB",
@@ -617,6 +722,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_white_balance": {
         "name": "Von Kries Chromatic Adaptation",
+        "friendly_name": "Fix White Balance (Warm / Cool Temp)",
+        "simple_description": "Fixes unnatural yellow indoor bulbs or overly blue lighting so whites look truly white.",
+        "tooltip": "Adjust color temperature (warm/cool) and tint (green/magenta).",
         "domain": "colorimetry",
         "func": col.von_kries_white_balance,
         "input_contract": "RGB",
@@ -632,6 +740,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_cmyk": {
         "name": "CMYK Subtractive Print Decomposition",
+        "friendly_name": "Inspect Print Inks (CMYK Channels)",
+        "simple_description": "Separates colors into Cyan, Magenta, Yellow, and Black ink plates used in professional book and magazine printing.",
+        "tooltip": "Inspect commercial subtractive printing plates (Cyan, Magenta, Yellow, Black).",
         "domain": "colorimetry",
         "func": col.rgb_to_cmyk_visualization,
         "input_contract": "RGB",
@@ -646,6 +757,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_rgb_matrix": {
         "name": "Multi-Channel Linear RGB Mixer",
+        "friendly_name": "Control RGB Colors (Channel Mixer)",
+        "simple_description": "Mix and boost individual Red, Green, and Blue channels for custom color correction or creative tints.",
+        "tooltip": "Independently scale and offset Red, Green, and Blue color channels.",
         "domain": "colorimetry",
         "func": col.multi_channel_rgb_matrix,
         "input_contract": "RGB",
@@ -665,6 +779,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_vibrance": {
         "name": "Photoshop Vibrance & Smart Saturation",
+        "friendly_name": "Vibrance & Smart Saturation",
+        "simple_description": "Makes dull colors pop with life while intelligently protecting skin tones from turning orange.",
+        "tooltip": "Boost muted colors safely without oversaturating skin tones.",
         "domain": "colorimetry",
         "func": col.vibrance_saturation,
         "input_contract": "RGB",
@@ -680,6 +797,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_sepia": {
         "name": "Antique Sepia Tone Tint",
+        "friendly_name": "Vintage Warm Sepia Tone",
+        "simple_description": "Gives modern digital pictures an authentic antique reddish-brown historical photo finish.",
+        "tooltip": "Convert to warm antique sepia silver photographic tone.",
         "domain": "colorimetry",
         "func": col.sepia_vintage,
         "input_contract": "RGB",
@@ -694,6 +814,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "col_split_toning": {
         "name": "DaVinci Resolve Split Toning",
+        "friendly_name": "Split Toning (Tint Shadows & Highlights)",
+        "simple_description": "Tints dark shadows one color (like cool teal) and bright highlights another (like warm gold).",
+        "tooltip": "Apply complementary color tints to shadows and highlights separately.",
         "domain": "colorimetry",
         "func": col.split_toning,
         "input_contract": "RGB",
@@ -715,6 +838,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "seg_sobel_balancer": {
         "name": "Sobel Directional Gradient Operator",
+        "friendly_name": "Detect Edges (Sobel Outlines)",
+        "simple_description": "Traces sharp boundaries and borders in the image using horizontal and vertical gradient detection.",
+        "tooltip": "Calculate edge gradients to trace object boundaries.",
         "domain": "segmentation",
         "func": seg.directional_gradient_sobel,
         "input_contract": "ANY",
@@ -731,6 +857,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_prewitt": {
         "name": "Prewitt Compass Gradient Filter",
+        "friendly_name": "Detect Edges (Prewitt Outlines)",
+        "simple_description": "Highlights structural borders and transitions with balanced direction sensitivity.",
+        "tooltip": "Detect horizontal and vertical outlines using uniform Prewitt kernels.",
         "domain": "segmentation",
         "func": seg.prewitt_gradient,
         "input_contract": "ANY",
@@ -743,6 +872,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_laplacian": {
         "name": "Laplacian Second-Derivative Filter",
+        "friendly_name": "Fine Edge Outlines (Laplacian)",
+        "simple_description": "Finds fine hairline cracks, delicate outlines, and pinpoint details regardless of their direction.",
+        "tooltip": "Second-derivative filter to extract fine omnidirectional edge outlines.",
         "domain": "segmentation",
         "func": seg.laplacian_second_derivative,
         "input_contract": "ANY",
@@ -757,6 +889,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_high_boost": {
         "name": "Unsharp Masking & High-Boost Filtering",
+        "friendly_name": "High-Boost Sharpening",
+        "simple_description": "Amplifies fine details and edges to make blurry scans and text punchy and readable.",
+        "tooltip": "Subtract blurred image and add back amplified high-frequency details.",
         "domain": "segmentation",
         "func": seg.parametric_high_boost,
         "input_contract": "ANY",
@@ -772,6 +907,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_canny": {
         "name": "Canny Multi-Stage Edge Detector",
+        "friendly_name": "Clean Line Drawing (Canny Edges)",
+        "simple_description": "Produces clean, thin, connected line outlines of all objects, ideal for sketches and robot vision.",
+        "tooltip": "Generate clean, single-pixel connected boundary contours.",
         "domain": "segmentation",
         "func": seg.canny_edge_detector,
         "input_contract": "ANY",
@@ -788,6 +926,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_manual_thresh": {
         "name": "Global Fixed-Level Binarization",
+        "friendly_name": "Black & White (Manual Cutoff)",
+        "simple_description": "Converts image into pure crisp black and pure white based on a cutoff slider you control.",
+        "tooltip": "Convert image into binary black and white using a manual threshold.",
         "domain": "segmentation",
         "func": seg.global_manual_threshold,
         "input_contract": "ANY",
@@ -802,6 +943,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_otsu": {
         "name": "Otsu Automatic Variance Thresholding",
+        "friendly_name": "Smart Black & White (Automatic Otsu)",
+        "simple_description": "Automatically figures out the ideal cutoff point to turn document scans or photos into clean black and white.",
+        "tooltip": "Statistically compute optimal black and white separation automatically.",
         "domain": "segmentation",
         "func": seg.otsu_automatic_threshold,
         "input_contract": "ANY",
@@ -814,6 +958,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_iterative_thresh": {
         "name": "Iterative Optimal Mean Thresholding",
+        "friendly_name": "Smart Silhouette B&W (Iterative Mean)",
+        "simple_description": "Finds the balanced cutoff point step-by-step for challenging backlit objects and silhouettes.",
+        "tooltip": "Iteratively converge on the optimal foreground/background cutoff.",
         "domain": "segmentation",
         "func": seg.iterative_optimal_threshold,
         "input_contract": "ANY",
@@ -828,6 +975,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_hough_lines": {
         "name": "Hough Line Transform",
+        "friendly_name": "Find Straight Lines (Hough Lines)",
+        "simple_description": "Automatically detects and draws straight lines, road lane markings, and architectural beams.",
+        "tooltip": "Detect structural straight lines using mathematical Hough transform voting.",
         "domain": "segmentation",
         "func": seg.hough_line_transform,
         "input_contract": "ANY",
@@ -845,6 +995,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_adaptive_thresh": {
         "name": "Local Adaptive Gaussian Binarization",
+        "friendly_name": "Document Scanner B&W (Shadow-Proof)",
+        "simple_description": "Turns photos of paper into clean black-and-white text even when shadows or uneven lamps fall across the page.",
+        "tooltip": "Binarize text cleanly under uneven lighting or casting shadows.",
         "domain": "segmentation",
         "func": seg.adaptive_threshold,
         "input_contract": "ANY",
@@ -861,6 +1014,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_hough_circles": {
         "name": "Hough Circle Transform",
+        "friendly_name": "Find Round Circles (Hough Circles)",
+        "simple_description": "Detects circular objects like coins, pills, or eyes and marks their exact outlines.",
+        "tooltip": "Identify and outline circular objects and radii in the image.",
         "domain": "segmentation",
         "func": seg.hough_circle_transform,
         "input_contract": "ANY",
@@ -879,6 +1035,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "seg_harris_corners": {
         "name": "Harris & Stephens Corner Detection",
+        "friendly_name": "Find Corner Points (Harris Corners)",
+        "simple_description": "Pinpoints sharp corners and intersection points, used in panorama stitching and motion tracking.",
+        "tooltip": "Detect rotation-invariant corner keypoints across the image.",
         "domain": "segmentation",
         "func": seg.harris_corners,
         "input_contract": "ANY",
@@ -900,6 +1059,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "morph_dilate": {
         "name": "Morphological Dilation",
+        "friendly_name": "Thicken White Regions (Dilate)",
+        "simple_description": "Expands white shapes, makes thin letters bolder, and bridges small broken gaps.",
+        "tooltip": "Grow white foreground boundaries and bridge broken letters.",
         "domain": "morphology",
         "func": morph.morphological_dilate,
         "input_contract": "ANY",
@@ -915,6 +1077,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_erode": {
         "name": "Morphological Erosion",
+        "friendly_name": "Thin & Shrink Shapes (Erode)",
+        "simple_description": "Trims away outer edges of white shapes, making thick lines thinner and wiping away small dust flecks.",
+        "tooltip": "Shrink white foreground boundaries and remove fine spurs.",
         "domain": "morphology",
         "func": morph.morphological_erode,
         "input_contract": "ANY",
@@ -930,6 +1095,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_open": {
         "name": "Morphological Opening (Filter Spikes)",
+        "friendly_name": "Clean Specks & Small Spots (Opening)",
+        "simple_description": "Wipes away tiny bright noise specks and separates objects that are lightly touching.",
+        "tooltip": "Erode then dilate to eliminate tiny isolated bright noise spots.",
         "domain": "morphology",
         "func": morph.morphological_open,
         "input_contract": "ANY",
@@ -945,6 +1113,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_close": {
         "name": "Morphological Closing (Fill Gaps)",
+        "friendly_name": "Fill Small Holes & Gaps (Closing)",
+        "simple_description": "Fills in tiny black holes inside objects and bridges cracks in broken letters.",
+        "tooltip": "Dilate then erode to seal narrow gaps and fill interior dark holes.",
         "domain": "morphology",
         "func": morph.morphological_close,
         "input_contract": "ANY",
@@ -960,6 +1131,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_gradient": {
         "name": "Morphological Gradient",
+        "friendly_name": "Hollow Outline (Morphological Edge)",
+        "simple_description": "Creates a hollow outline of shapes by subtracting the shrunk core from the expanded edge.",
+        "tooltip": "Generate clean perimeter outlines using structural expansion and contraction.",
         "domain": "morphology",
         "func": morph.morphological_gradient,
         "input_contract": "ANY",
@@ -975,6 +1149,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_tophat": {
         "name": "White Top-Hat Transform",
+        "friendly_name": "Extract Bright Highlights (Top-Hat)",
+        "simple_description": "Isolates elements that are brighter than their immediate background, like stars in the night sky.",
+        "tooltip": "Extract bright details and features on unevenly lit backgrounds.",
         "domain": "morphology",
         "func": morph.morphological_tophat,
         "input_contract": "ANY",
@@ -990,6 +1167,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_blackhat": {
         "name": "Black-Hat (Bottom-Hat) Transform",
+        "friendly_name": "Extract Dark Grooves (Black-Hat)",
+        "simple_description": "Reveals dark sunken features like microscopic cracks, dark text, or blood vessels.",
+        "tooltip": "Extract dark features and depressions against brighter backgrounds.",
         "domain": "morphology",
         "func": morph.morphological_blackhat,
         "input_contract": "ANY",
@@ -1005,6 +1185,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_boundary": {
         "name": "Boundary Extraction Operator",
+        "friendly_name": "Perimeter Wireframe (Boundary)",
+        "simple_description": "Strips away the inside of solid shapes, leaving only a clean one-pixel perimeter line.",
+        "tooltip": "Extract the outer perimeter wireframe contour of shapes.",
         "domain": "morphology",
         "func": morph.boundary_extraction,
         "input_contract": "ANY",
@@ -1020,6 +1203,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "morph_hit_and_miss": {
         "name": "Hit-or-Miss Transform",
+        "friendly_name": "Spot Corner & End Points (Hit-or-Miss)",
+        "simple_description": "Finds specific pixel geometries like line tips, corners, or isolated single dots.",
+        "tooltip": "Locate specific foreground/background pixel geometries.",
         "domain": "morphology",
         "func": morph.hit_and_miss_transform,
         "input_contract": "BINARY",
@@ -1038,6 +1224,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "art_pencil_sketch": {
         "name": "Hand-Drawn Pencil Sketch",
+        "friendly_name": "Pencil Sketch / Hand Drawing",
+        "simple_description": "Turns photos into realistic graphite pencil drawings or colored sketch illustrations.",
+        "tooltip": "Convert image into realistic graphite or colored pencil artwork.",
         "domain": "artistic",
         "func": art.pencil_sketch,
         "input_contract": "ANY",
@@ -1053,6 +1242,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "art_cartoonify": {
         "name": "Cel-Shaded Cartoonify Effect",
+        "friendly_name": "Comic Book / Cartoon Art",
+        "simple_description": "Flattens colors and draws bold black ink outlines to turn photos into graphic comic book art.",
+        "tooltip": "Flatten colors with bilateral filter and overlay ink outlines for cartoon effect.",
         "domain": "artistic",
         "func": art.cartoonify_filter,
         "input_contract": "RGB",
@@ -1070,6 +1262,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "art_emboss": {
         "name": "3D Directional Bas-Relief Emboss",
+        "friendly_name": "3D Stamped Metal Emboss",
+        "simple_description": "Gives your image a raised 3D texture, making it look like a stamped metal coin or stone carving.",
+        "tooltip": "Simulate directional 3D relief lighting on metallic surfaces.",
         "domain": "artistic",
         "func": art.emboss_filter,
         "input_contract": "ANY",
@@ -1085,6 +1280,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "art_vignette": {
         "name": "Radial Optical Lens Vignette",
+        "friendly_name": "Dark / Light Border Vignette",
+        "simple_description": "Softly darkens or lightens the outer borders to draw all viewer attention directly to the center subject.",
+        "tooltip": "Apply smooth radial edge falloff to draw focus to the subject.",
         "domain": "artistic",
         "func": art.vignette_filter,
         "input_contract": "ANY",
@@ -1100,6 +1298,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "art_tilt_shift": {
         "name": "Tilt-Shift Miniature Blur",
+        "friendly_name": "Toy Miniature Effect (Tilt-Shift)",
+        "simple_description": "Blurs the top and bottom of your photo so real-world cities and vehicles look like tiny toy miniatures.",
+        "tooltip": "Simulate shallow depth-of-field to make cityscapes look like miniature dioramas.",
         "domain": "artistic",
         "func": art.tilt_shift_filter,
         "input_contract": "ANY",
@@ -1120,6 +1321,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     # -----------------------------
     "comp_dct_jpeg": {
         "name": "Academic DCT 8x8 Block JPEG Simulation",
+        "friendly_name": "JPEG Compression Simulator",
+        "simple_description": "Lets you slide quality down from 100% to 1% to see classic JPEG 8x8 block artifacts and file savings.",
+        "tooltip": "Simulate standard 8x8 DCT JPEG compression blocks and quality degradation.",
         "domain": "compression",
         "func": comp.dct_block_jpeg_simulation,
         "input_contract": "ANY",
@@ -1135,6 +1339,9 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
     },
     "comp_quantization": {
         "name": "Paletted Color Quantization (PNG-8 / GIF)",
+        "friendly_name": "Color Palette Reducer (GIF Style)",
+        "simple_description": "Reduces 16 million colors down to 2-256 indexed colors with retro dithered dots, like vintage GIFs.",
+        "tooltip": "Reduce color palette to 2-256 colors with optional Floyd-Steinberg dithering.",
         "domain": "compression",
         "func": comp.paletted_color_quantization,
         "input_contract": "ANY",

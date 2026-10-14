@@ -267,9 +267,14 @@ def create_layer_dict(algo_key: str, custom_params: Optional[Dict[str, Any]] = N
         default_params.update(custom_params)
 
     layer_id = f"layer_{uuid.uuid4().hex[:6]}"
+    friendly = meta.get("friendly_name", meta.get("name", "Unknown Layer"))
     return {
         "id": layer_id,
-        "name": meta.get("name", "Unknown Layer"),
+        "name": friendly,
+        "friendly_name": friendly,
+        "algo_name": meta.get("name", "Unknown Algorithm"),
+        "simple_description": meta.get("simple_description", meta.get("summary", "")),
+        "tooltip": meta.get("tooltip", meta.get("summary", "")),
         "domain": meta.get("domain", "geometry"),
         "algorithm_key": algo_key,
         "enabled": True,
@@ -278,12 +283,48 @@ def create_layer_dict(algo_key: str, custom_params: Optional[Dict[str, Any]] = N
     }
 
 
-def add_layer_to_stack(algo_key: str):
+def add_layer_to_stack(algo_key: str, custom_params: Optional[Dict[str, Any]] = None, auto_convert: bool = True):
     """Appends an algorithm block to the active stack and selects it."""
     _push_history()
-    new_layer = create_layer_dict(algo_key)
+    new_layer = create_layer_dict(algo_key, custom_params=custom_params, auto_convert=auto_convert)
     st.session_state.active_layer_stack.append(new_layer)
     st.session_state.selected_layer_id = new_layer["id"]
+
+
+def has_crop_layer() -> bool:
+    """Returns True if any crop layer is currently in the active pipeline stack."""
+    init_session_state()
+    for layer in st.session_state.get("active_layer_stack", []):
+        if layer.get("algorithm_key") == "geo_shape_crop":
+            return True
+    return False
+
+
+def remove_crop_layers_from_stack():
+    """
+    Removes all shape crop layers from the active pipeline stack,
+    completely restoring the full uncropped image canvas scale
+    WITHOUT disturbing, resetting, or losing any other active filters.
+    """
+    init_session_state()
+    stack = st.session_state.get("active_layer_stack", [])
+    crop_layers = [l for l in stack if l.get("algorithm_key") == "geo_shape_crop"]
+    if not crop_layers:
+        return
+
+    _push_history()
+    st.session_state.active_layer_stack = [
+        l for l in stack if l.get("algorithm_key") != "geo_shape_crop"
+    ]
+    # If the active selection was on a removed crop layer, safely update selection
+    removed_ids = {l["id"] for l in crop_layers}
+    if st.session_state.get("selected_layer_id") in removed_ids:
+        if st.session_state.active_layer_stack:
+            st.session_state.selected_layer_id = st.session_state.active_layer_stack[-1]["id"]
+            st.session_state["param_active_stage_select"] = st.session_state.selected_layer_id
+        else:
+            st.session_state.selected_layer_id = None
+            st.session_state.pop("param_active_stage_select", None)
 
 
 def remove_layer(layer_id: str):
@@ -347,7 +388,12 @@ def swap_layer_algorithm(layer_id: str, new_algo_key: str):
 
     for layer in st.session_state.active_layer_stack:
         if layer["id"] == layer_id:
-            layer["name"] = meta["name"]
+            friendly = meta.get("friendly_name", meta.get("name", "Unknown Layer"))
+            layer["name"] = friendly
+            layer["friendly_name"] = friendly
+            layer["algo_name"] = meta.get("name", "Unknown Algorithm")
+            layer["simple_description"] = meta.get("simple_description", meta.get("summary", ""))
+            layer["tooltip"] = meta.get("tooltip", meta.get("summary", ""))
             layer["domain"] = meta["domain"]
             layer["algorithm_key"] = new_algo_key
             # Populate default parameters for new algorithm
