@@ -1,8 +1,5 @@
 """
-=============================================================================
-Pixel-Forge - Professional Vector Shape Cropper Studio
-Interactive studio component for multi-shape cropping with alpha transparency.
-=============================================================================
+Interactive vector shape cropper UI component.
 """
 
 from typing import Optional
@@ -17,13 +14,7 @@ from core.state_manager import add_layer_to_stack, has_crop_layer, remove_crop_l
 
 
 def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, master_image: Optional[np.ndarray] = None):
-    """
-    Renders the Vector Multi-Shape Cropper Studio inside a collapsible expander.
-    Enables users to crop images using analytical vector shapes:
-    Circle, Square, Rectangle, Ellipse, Triangle, Diamond, Hexagon, Octagon,
-    Star, Heart, Regular N-gon, with subpixel anti-aliasing and RGBA transparency.
-    Supports cropping pristine full-resolution master images (up to 1,000 MB).
-    """
+    """Render the shape cropper UI and controls."""
     with st.expander("✂️ **Vector Shape Cropper Studio (Circle, Square, Star, Heart & Custom)**", expanded=False):
         st.markdown(
             """
@@ -43,7 +34,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
             unsafe_allow_html=True
         )
 
-        # Active crop detection banner & 1-click restore full scale button
         is_crop_active = has_crop_layer()
         if is_crop_active:
             st.markdown(
@@ -67,7 +57,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
                 st.success("Canvas scale restored to normal! All other filters remain 100% active.")
                 st.rerun()
 
-        # Source Frame Selection & Quick Presets
         src_col, preset_col = st.columns([1, 2.2])
         with src_col:
             crop_src_options = ["Current Processed Output", "Original Raw Frame"]
@@ -155,9 +144,7 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
 
         st.markdown("<hr style='border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 10px 0;'>", unsafe_allow_html=True)
 
-        # -------------------------------------------------------------
-        # SHAPE CONTROLS & SLIDERS
-        # -------------------------------------------------------------
+        # Shape controls
         row1_c1, row1_c2, row1_c3, row1_c4 = st.columns([1.5, 1.2, 1.2, 1.2])
 
         with row1_c1:
@@ -180,7 +167,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
                 key="cropper_shape_select"
             )
 
-            # Map to internal shape name
             shape_key_map = {
                 "Circle (Avatar / Round)": "circle",
                 "Square (1:1 Ratio)": "square",
@@ -212,7 +198,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
                 key="cropper_aspect_select"
             )
 
-        # Secondary options (Sides for Polygon, Inner ratio for Star, Background & Tight crop)
         row2_c1, row2_c2, row2_c3 = st.columns([1.3, 1.3, 1.4])
 
         with row2_c1:
@@ -254,9 +239,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
                 sides_val = 5
                 star_ratio = 0.382
 
-        # -------------------------------------------------------------
-        # EXECUTE SHAPE CROP
-        # -------------------------------------------------------------
         cropped_output = vector_shape_crop(
             image=base_img,
             shape=shape_name,
@@ -272,9 +254,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
             star_inner_ratio=star_ratio
         )
 
-        # -------------------------------------------------------------
-        # LIVE DUAL PREVIEW
-        # -------------------------------------------------------------
         prev_col1, prev_col2 = st.columns(2)
 
         with prev_col1:
@@ -282,8 +261,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
                 f"<div style='font-size: 0.85rem; font-weight: 700; color: #94a3b8; margin-bottom: 4px;'>📐 SOURCE CANVAS WITH CROP REGION ({base_img.shape[1]} × {base_img.shape[0]} px)</div>",
                 unsafe_allow_html=True
             )
-            # Create interactive overlay showing shape boundary
-            h, w = base_img.shape[:2]
             overlay_view = base_img.copy()
             if overlay_view.ndim == 3 and overlay_view.shape[2] == 4:
                 overlay_view = cv2.cvtColor(overlay_view, cv2.COLOR_RGBA2RGB)
@@ -301,9 +278,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
             )
             st.image(cropped_output, width="stretch")
 
-        # -------------------------------------------------------------
-        # ACTIONS: DOWNLOAD, ADD TO PIPELINE & RESET CROP
-        # -------------------------------------------------------------
         st.write("")
         if is_crop_active:
             act_col1, act_col2, act_col3 = st.columns([1.1, 1.4, 1.4])
@@ -312,7 +286,6 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, mast
             act_col3 = None
 
         with act_col1:
-            # Encode to PNG preserving alpha channel
             if cropped_output.ndim == 3 and cropped_output.shape[2] == 4:
                 out_bgra = cv2.cvtColor(cropped_output, cv2.COLOR_RGBA2BGRA)
                 success, encoded_png = cv2.imencode('.png', out_bgra)

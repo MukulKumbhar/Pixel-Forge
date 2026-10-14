@@ -1,7 +1,5 @@
 """
-ImageLab Pro - Non-Destructive Layer/Node Pipeline Manager
-Executes sequential filter chains over the base raw image with state contract validation,
-auto-conversion shims, and per-stage latency telemetry.
+Non-destructive layer pipeline execution and format compatibility manager.
 """
 
 import time
@@ -12,9 +10,7 @@ from algorithms.registry import ALGORITHM_REGISTRY
 
 
 def detect_state(image: np.ndarray) -> str:
-    """
-    Determines image state contract: 'RGB', 'RGBA', 'GRAYSCALE', or 'BINARY'.
-    """
+    """Determine image format state (RGB, RGBA, GRAYSCALE, BINARY)."""
     if image is None:
         return "UNKNOWN"
 
@@ -23,7 +19,6 @@ def detect_state(image: np.ndarray) -> str:
     elif image.ndim == 3 and image.shape[2] == 3:
         return "RGB"
     elif image.ndim == 2 or (image.ndim == 3 and image.shape[2] == 1):
-        # Single channel: check if values are strictly binary {0, 255}
         unique_vals = np.unique(image)
         if len(unique_vals) <= 2 and np.all(np.isin(unique_vals, [0, 255])):
             return "BINARY"
@@ -32,32 +27,19 @@ def detect_state(image: np.ndarray) -> str:
 
 
 def convert_state(image: np.ndarray, source_state: str, target_state: str) -> np.ndarray:
-    """
-    Auto-conversion shim providing non-destructive format bridges:
-    - RGBA -> RGB (drop alpha or alpha blend)
-    - RGBA / RGB -> GRAYSCALE (luminance extraction)
-    - RGBA / RGB / GRAYSCALE -> BINARY (Otsu optimal thresholding)
-    - GRAYSCALE / BINARY -> RGB (channel replication)
-    - RGB / GRAYSCALE / BINARY -> RGBA (channel expansion)
-    """
+    """Convert image tensor between color formats."""
     if source_state == target_state:
         return image
 
     if target_state == "GRAYSCALE":
-        if source_state == "RGBA":
-            return cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
-        elif source_state == "RGB":
-            return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        if source_state in ["RGBA", "RGB"]:
+            return cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY if source_state == "RGBA" else cv2.COLOR_RGB2GRAY)
         elif source_state == "BINARY":
-            return image.copy()  # Binary is already a valid 1-channel format
+            return image.copy()
 
     elif target_state == "BINARY":
-        if source_state == "RGBA":
-            gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
-            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            return binary
-        elif source_state == "RGB":
-            gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        if source_state in ["RGBA", "RGB"]:
+            gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY if source_state == "RGBA" else cv2.COLOR_RGB2GRAY)
             _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             return binary
         elif source_state == "GRAYSCALE":
@@ -99,7 +81,7 @@ class StageExecutionResult:
         self.time_ms = time_ms
         self.input_state = input_state
         self.output_state = output_state
-        self.status = status  # 'executed', 'bypassed', 'conflict_skipped', 'error'
+        self.status = status
         self.warning = warning
         self.converted = converted
 
@@ -122,14 +104,10 @@ def execute_pipeline(
     raw_image: np.ndarray,
     layer_stack: List[Dict[str, Any]]
 ) -> PipelineExecutionResult:
-    """
-    Executes the active layer stack non-destructively on a fresh copy of raw_image.
-    Validates state contracts between each consecutive block.
-    """
+    """Execute layer stack sequentially on a copy of raw_image."""
     if raw_image is None:
         raise ValueError("raw_image cannot be None")
 
-    # Start with pure clone of base frame
     current_frame = raw_image.copy()
     stage_results: List[StageExecutionResult] = []
     has_conflicts = False
@@ -145,7 +123,6 @@ def execute_pipeline(
         auto_convert = layer.get("auto_convert", True)
         params = layer.get("params", {})
 
-        # If bypassed, record and carry frame forward
         if not enabled:
             curr_state = detect_state(current_frame)
             stage_results.append(
@@ -182,23 +159,20 @@ def execute_pipeline(
         was_converted = False
         warning_msg = None
 
-        # State contract validation
         compatible = True
         if expected_contract != "ANY":
             if expected_contract == "GRAYSCALE" and current_state == "BINARY":
-                compatible = True  # Binary is acceptable as 1-channel Grayscale
+                compatible = True
             elif expected_contract != current_state:
                 compatible = False
 
         if not compatible:
             if auto_convert:
-                # Apply automatic format bridge
                 current_frame = convert_state(current_frame, current_state, expected_contract)
                 was_converted = True
                 warning_msg = f"Auto-converted upstream tensor from {current_state} to {expected_contract}."
                 current_state = expected_contract
             else:
-                # Contract violation without auto-convert: raise helpful conflict
                 has_conflicts = True
                 warning_msg = (
                     f"Format Mismatch: {layer_name} expects {expected_contract}, "
@@ -218,15 +192,12 @@ def execute_pipeline(
                 )
                 continue
 
-        # Execute algorithm with timing
         func = algo_meta["func"]
         t_stage_start = time.perf_counter()
         try:
-            # Filter params to those expected by function
             res = func(current_frame, **params)
             t_stage_elapsed = (time.perf_counter() - t_stage_start) * 1000.0
 
-            # Guard against unexpected types
             if isinstance(res, np.ndarray):
                 current_frame = np.clip(res, 0, 255).astype(np.uint8)
             else:

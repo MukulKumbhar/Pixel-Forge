@@ -71,9 +71,7 @@ DOMAINS = {
 }
 
 ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
-    # -----------------------------
-    # DOMAIN 1: GEOMETRIC & SPATIAL
-    # -----------------------------
+    # Domain 1: Geometric & spatial
     "geo_sampling": {
         "name": "Spatial Sampling & Discretization",
         "friendly_name": "Pixelate / Lower Resolution",
@@ -215,9 +213,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 2: RADIOMETRIC & CONTRAST
-    # -----------------------------
+    # Domain 2: Radiometric & contrast
     "rad_negative": {
         "name": "Digital Photographic Negative",
         "friendly_name": "Invert Colors / Photo Negative",
@@ -390,9 +386,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 3: RESTORATION & FILTERING
-    # -----------------------------
+    # Domain 3: Restoration & filtering
     "rest_noise_gaussian": {
         "name": "Additive Gaussian Noise Injection",
         "friendly_name": "Add Film Grain / Camera Noise",
@@ -661,9 +655,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 4: COLORIMETRY & GRADING
-    # -----------------------------
+    # Domain 4: Colorimetry & grading
     "col_3d_lut": {
         "name": "3D Cinematic LUT Color Transform",
         "friendly_name": "Cinematic Film Looks (3D LUTs)",
@@ -833,9 +825,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 5: SEGMENTATION & STRUCTURAL
-    # -----------------------------
+    # Domain 5: Segmentation & structural
     "seg_sobel_balancer": {
         "name": "Sobel Directional Gradient Operator",
         "friendly_name": "Detect Edges (Sobel Outlines)",
@@ -1054,9 +1044,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 6: MORPHOLOGY
-    # -----------------------------
+    # Domain 6: Morphology
     "morph_dilate": {
         "name": "Morphological Dilation",
         "friendly_name": "Thicken White Regions (Dilate)",
@@ -1219,9 +1207,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 7: CREATIVE FX & PHOTOSHOP STUDIO
-    # -----------------------------
+    # Domain 7: Creative FX & Photoshop studio
     "art_pencil_sketch": {
         "name": "Hand-Drawn Pencil Sketch",
         "friendly_name": "Pencil Sketch / Hand Drawing",
@@ -1316,9 +1302,7 @@ ALGORITHM_REGISTRY: Dict[str, Dict[str, Any]] = {
         }
     },
 
-    # -----------------------------
-    # DOMAIN 8: COMPRESSION & REDUNDANCY
-    # -----------------------------
+    # Domain 8: Compression & redundancy
     "comp_dct_jpeg": {
         "name": "Academic DCT 8x8 Block JPEG Simulation",
         "friendly_name": "JPEG Compression Simulator",

@@ -1,6 +1,6 @@
 """
 Pixel-Forge — Interactive Digital Image Processing Studio
-Entry Point: Orchestrates layout, state, sidebar pipeline stack, and responsive viewport rendering.
+Main application entry point.
 """
 
 import io
@@ -9,10 +9,9 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-Image.MAX_IMAGE_PIXELS = None  # Eliminate PIL decompression bomb cap for large 200MB+ images
+Image.MAX_IMAGE_PIXELS = None  # Allow processing large images
 import streamlit as st
 
-# Core imports
 from core.pipeline import execute_pipeline
 from core.state_manager import (
     PRESETS,
@@ -42,7 +41,6 @@ from ui.conflict_resolver import render_conflict_alerts
 from ui.compressor_dock import render_compressor_dock
 from ui.cropper_dock import render_cropper_dock
 
-# Set page config
 st.set_page_config(
     page_title="Pixel-Forge — Interactive DIP Studio",
     page_icon="🔬",
@@ -50,31 +48,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Apply custom dark-mode DCC studio CSS styling
 apply_studio_styles()
-
-# Initialize session state variables
 init_session_state()
 
 
 def load_image_asset(filename: str) -> np.ndarray:
-    """Loads a sample benchmark image from the assets directory."""
+    """Load sample image asset from disk."""
     path = os.path.join("assets", "sample_images", filename)
     if os.path.exists(path):
         bgr = cv2.imread(path)
         if bgr is not None:
             return cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-    # Fallback synthetic pattern if file is missing
     return np.zeros((512, 512, 3), dtype=np.uint8) + 128
 
 
 def main():
-    # Guarantee session state initialization for this user thread/session
     init_session_state()
 
-    # -------------------------------------------------------------
-    # 1. STUDIO HEADER BAR
-    # -------------------------------------------------------------
     st.markdown(
         """
         <div class="studio-header">
@@ -94,9 +84,6 @@ def main():
         unsafe_allow_html=True
     )
 
-    # -------------------------------------------------------------
-    # 2. IMAGE LOADER & TOP WORKSPACE BAR
-    # -------------------------------------------------------------
     top_col1, top_col2, top_col3 = st.columns([1.6, 1.6, 1.3])
 
     with top_col1:
@@ -120,7 +107,7 @@ def main():
             help="High-capacity upload buffer supports multi-megabyte photographic, medical, and RAW scans (up to 1,000 MB)."
         )
 
-    # High-Performance Cached Ingestion for Large Images
+    # Ingestion caching for large files
     if uploaded_file is not None:
         file_sig = f"{uploaded_file.name}_{uploaded_file.size}"
         if st.session_state.get("_cached_upload_sig") == file_sig and st.session_state.get("_master_raw_image") is not None:
@@ -138,7 +125,7 @@ def main():
 
                     st.session_state["_cached_upload_sig"] = file_sig
                     st.session_state["_master_raw_image"] = master_raw_image
-                    st.session_state["_proxy_raw_image"] = None  # Invalidate proxy cache
+                    st.session_state["_proxy_raw_image"] = None
                     import gc
                     gc.collect()
                 except Exception as e:
@@ -151,7 +138,7 @@ def main():
             st.session_state["_master_raw_image"] = master_raw_image
             st.session_state["_proxy_raw_image"] = None
 
-    # Studio Viewport Engine: Resolve active working frame
+    # Handle high-res viewport downscaling
     master_h, master_w = master_raw_image.shape[:2]
     is_ultra_high_res = max(master_h, master_w) > 2048
 
@@ -210,14 +197,11 @@ def main():
                 clear_layer_stack()
                 st.rerun()
 
-    # -------------------------------------------------------------
-    # 3. SIDEBAR: PIPELINE STACK & REORDERING
-    # -------------------------------------------------------------
+    # Sidebar: pipeline stack
     with st.sidebar:
         st.markdown("### 🎞️ **Pipeline Layer Stack**")
         st.caption("Non-destructive serial chain evaluated in milliseconds.")
 
-        # Preset selector callback to eliminate infinite rerun loop
         def on_preset_dropdown_change():
             chosen = st.session_state.get("preset_dropdown_choice")
             if chosen and chosen != "-- Select Preset --":
@@ -238,7 +222,6 @@ def main():
 
         st.divider()
 
-        # Render active layers list
         stack = st.session_state.active_layer_stack
 
         def _on_toggle_layer_cb(lid: str, w_key: str):
@@ -287,7 +270,6 @@ def main():
                         unsafe_allow_html=True
                     )
 
-                    # Controls row: [Toggle] [Up] [Down] [Gear/Edit] [Delete]
                     c_toggle, c_up, c_down, c_gear, c_del = st.columns([1, 1, 1, 1, 1])
 
                     with c_toggle:
@@ -329,43 +311,27 @@ def main():
                 st.session_state.pop("param_active_stage_select", None)
                 st.rerun()
 
-    # -------------------------------------------------------------
-    # 4. EXECUTE PIPELINE
-    # -------------------------------------------------------------
+    # Execute active pipeline
     pipeline_result = execute_pipeline(raw_base_image, st.session_state.active_layer_stack)
     processed_image = pipeline_result.output_image
 
-    # Prerequisite & Conflict resolver alerts
     render_conflict_alerts(pipeline_result.stage_results)
-
-    # Telemetry diagnostics banner
     render_telemetry_banner(raw_base_image, processed_image, pipeline_result)
-
-    # Full-Screen Responsive Dual-Viewport Canvas
     render_dual_viewport(raw_base_image, processed_image)
 
-    # -------------------------------------------------------------
-    # 5. STUDIO CONTROL EXPANDERS SUITE
-    # -------------------------------------------------------------
-    # Expander 1: Filter Catalog & Algorithm Selector (Browse & Add Stages)
+    # Studio control panels
     with st.expander("🎛️ **Filter Catalog & Algorithm Selector (Browse & Add Stages)**", expanded=False):
         render_filter_catalog()
 
-    # Expander 2: Active Filter Parameters & Stage Controls
     has_active_layers = len(st.session_state.get("active_layer_stack", [])) > 0
     with st.expander("⚙️ **Active Filter Parameters & Stage Controls**", expanded=has_active_layers):
         render_parameter_drawer(st.session_state.get("selected_layer_id"))
 
-    # Expander 3: Vector Multi-Shape Cropper Studio
     render_cropper_dock(raw_base_image, processed_image, master_raw_image)
-
-    # Expander 4: Pro Image Compressor (Lossless & Deep Lossy with Quality Slider)
     render_compressor_dock(raw_base_image, processed_image, master_raw_image)
-
-    # Expander 5: Comparative Image Histograms (Input vs Output)
     render_histogram_dock(raw_base_image, processed_image)
 
-    # Expander 6: Export Studio & Pipeline Recipe
+    # Export panel
     with st.expander("💾 **Export Studio & Pipeline Recipe**", expanded=False):
         exp_col1, exp_col2, exp_col3 = st.columns([1.2, 1.2, 1.4])
 
@@ -378,7 +344,6 @@ def main():
                 key="export_res_choice"
             )
 
-            # Determine frame to export
             if export_mode == "Full-Resolution Master (100% Original Quality)" and is_ultra_high_res:
                 if len(st.session_state.get("active_layer_stack", [])) > 0:
                     with st.spinner(f"⚡ Rendering full-resolution master ({master_w} × {master_h} px) through active pipeline..."):

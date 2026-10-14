@@ -1,6 +1,5 @@
 """
-ImageLab Pro - Quantitative Image Quality & Radiometric Metrics
-Calculates PSNR, MSE, SSIM, Shannon Entropy, Dynamic Range, and Multi-Channel Histograms.
+Image quality and radiometric metric calculations (PSNR, MSE, SSIM, Entropy).
 """
 
 import cv2
@@ -8,39 +7,28 @@ import numpy as np
 
 
 def calculate_mse(img_orig: np.ndarray, img_proc: np.ndarray) -> float:
-    """
-    Mean Squared Error: MSE = (1 / MN) * sum (I_orig - I_proc)^2
-    """
-    # Ensure identical shape and channels for comparison
+    """Mean Squared Error between original and processed images."""
     o, p = _align_image_shapes(img_orig, img_proc)
     diff = o.astype(np.float64) - p.astype(np.float64)
     return float(np.mean(diff ** 2))
 
 
 def calculate_psnr(img_orig: np.ndarray, img_proc: np.ndarray) -> float:
-    """
-    Peak Signal-to-Noise Ratio (PSNR in decibels dB):
-    PSNR = 10 * log10( (MAX_I)^2 / MSE )
-    """
+    """Peak Signal-to-Noise Ratio in decibels (dB)."""
     mse = calculate_mse(img_orig, img_proc)
     if mse < 1e-10:
-        return 99.9  # Infinitely high quality (lossless match)
+        return 99.9
     max_val = 255.0
     return float(10.0 * np.log10((max_val ** 2) / mse))
 
 
 def calculate_ssim(img_orig: np.ndarray, img_proc: np.ndarray) -> float:
-    """
-    Structural Similarity Index Metric (SSIM):
-    SSIM = [ (2*mu_x*mu_y + c1)(2*sigma_xy + c2) ] / [ (mu_x^2 + mu_y^2 + c1)(sigma_x^2 + sigma_y^2 + c2) ]
-    Measures luminance, contrast, and structural preservation.
-    """
+    """Structural Similarity Index Metric (SSIM)."""
     o, p = _align_image_shapes(img_orig, img_proc)
     if o.ndim == 3:
         o = cv2.cvtColor(o, cv2.COLOR_RGB2GRAY)
         p = cv2.cvtColor(p, cv2.COLOR_RGB2GRAY)
 
-    # For massive ultra-high-res images (>2048px), downsample to 2048px for sub-second SSIM calculation
     h_max = max(o.shape[:2])
     if h_max > 2048:
         scale_ssim = 2048.0 / h_max
@@ -73,11 +61,7 @@ def calculate_ssim(img_orig: np.ndarray, img_proc: np.ndarray) -> float:
 
 
 def calculate_entropy(image: np.ndarray) -> float:
-    """
-    Shannon Image Information Entropy:
-    H = - sum_{k} p(k) * log2(p(k))
-    Quantifies average information content and contrast richness (in bits/pixel).
-    """
+    """Shannon image information entropy in bits per pixel."""
     if image.ndim == 3 and image.shape[2] == 4:
         gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
     elif image.ndim == 3:
@@ -94,16 +78,12 @@ def calculate_entropy(image: np.ndarray) -> float:
 
 
 def compute_histograms(image: np.ndarray) -> dict:
-    """
-    Computes normalized histogram distributions for rendering comparative charts.
-    Returns dictionary with channel keys: 'r', 'g', 'b', or 'luminance'.
-    """
+    """Compute normalized histogram distributions for channels and luminance."""
     bins = 256
     if image.ndim == 3 and image.shape[2] >= 3:
         hist_r, _ = np.histogram(image[:, :, 0], bins=bins, range=[0, 256])
         hist_g, _ = np.histogram(image[:, :, 1], bins=bins, range=[0, 256])
         hist_b, _ = np.histogram(image[:, :, 2], bins=bins, range=[0, 256])
-        # Luminance
         if image.shape[2] == 4:
             gray = cv2.cvtColor(image, cv2.COLOR_RGBA2GRAY)
         else:
@@ -126,10 +106,7 @@ def compute_histograms(image: np.ndarray) -> dict:
 
 
 def _align_image_shapes(img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Helper to align spatial dimensions and channels if a pipeline step altered them.
-    """
-    # Normalize RGBA to RGB for metric comparisons
+    """Align dimensions and channel formats for comparison."""
     if img_a.ndim == 3 and img_a.shape[2] == 4:
         img_a = cv2.cvtColor(img_a, cv2.COLOR_RGBA2RGB)
     if img_b.ndim == 3 and img_b.shape[2] == 4:
@@ -138,11 +115,9 @@ def _align_image_shapes(img_a: np.ndarray, img_b: np.ndarray) -> tuple[np.ndarra
     ha, wa = img_a.shape[:2]
     hb, wb = img_b.shape[:2]
 
-    # Resize img_b to match img_a if dimensions changed (e.g. downsampling or cropping)
     if (ha, wa) != (hb, wb):
         img_b = cv2.resize(img_b, (wa, ha), interpolation=cv2.INTER_LINEAR)
 
-    # Match channel counts
     if img_a.ndim == 3 and img_b.ndim == 2:
         img_b = cv2.cvtColor(img_b, cv2.COLOR_GRAY2RGB)
     elif img_a.ndim == 2 and img_b.ndim == 3:

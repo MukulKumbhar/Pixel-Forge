@@ -1,8 +1,5 @@
 """
-=============================================================================
-Pixel-Forge - Professional Image Compressor Studio (Lossless & Deep Lossy)
-Interactive studio component for global-ready production compression.
-=============================================================================
+Interactive image compressor UI component supporting lossless and deep lossy modes.
 """
 
 import time
@@ -15,7 +12,7 @@ from algorithms.compression import compress_image_stream
 
 
 def _format_bytes(num_bytes: int) -> str:
-    """Formats byte counts into human-readable KB or MB."""
+    """Format byte counts into human-readable KB or MB."""
     if num_bytes < 1024:
         return f"{num_bytes} B"
     elif num_bytes < 1024 * 1024:
@@ -25,13 +22,7 @@ def _format_bytes(num_bytes: int) -> str:
 
 
 def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, master_image: Optional[np.ndarray] = None):
-    """
-    Renders the Pro Image Compressor Studio inside a collapsible, high-end expander.
-    Offers two distinct compression modes:
-    1. Lossless: 100% bit-exact or lossless encoding with zero quality degradation.
-    2. Deep Lossy: Dynamic quality slider, modern codecs, dimension scaling, and live telemetry.
-    Supports compressing pristine full-resolution master images (up to 1,000 MB).
-    """
+    """Render image compressor dock with lossless and lossy slider controls."""
     with st.expander("🗜️ **Pro Image Compressor (Lossless & Deep Lossy with Quality Slider)**", expanded=False):
         st.markdown(
             """
@@ -51,7 +42,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
             unsafe_allow_html=True
         )
 
-        # Source frame selection
         c_src, c_mode = st.columns([1.1, 1.9])
         with c_src:
             src_options = ["Current Processed Output", "Original Raw Frame"]
@@ -85,11 +75,7 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
         is_lossless = "Lossless" in compression_mode
         st.markdown("<hr style='border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 12px 0;'>", unsafe_allow_html=True)
 
-        # -------------------------------------------------------------
-        # PARAMETER CONTROLS
-        # -------------------------------------------------------------
         if is_lossless:
-            # LOSSLESS CONTROLS
             l_col1, l_col2, l_col3 = st.columns([1.2, 1.4, 1.4])
             with l_col1:
                 lossless_format = st.selectbox(
@@ -131,7 +117,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
                 unsafe_allow_html=True
             )
 
-            # Execute lossless compression
             comp_result = compress_image_stream(
                 image=target_image,
                 mode="lossless",
@@ -142,7 +127,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
             )
 
         else:
-            # DEEP LOSSY CONTROLS
             y_col1, y_col2, y_col3, y_col4 = st.columns([1.2, 1.8, 1.1, 1.1])
             with y_col1:
                 lossy_format = st.selectbox(
@@ -172,7 +156,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
                     help="Lower quality applies deeper quantization and higher compression, drastically reducing file size."
                 )
 
-                # Dynamic tier indicator
                 if quality_val >= 88:
                     tier_badge = "<span style='color: #34d399; font-weight: 700;'>Studio Master (Near-Lossless, 2x — 5x smaller)</span>"
                 elif quality_val >= 65:
@@ -211,7 +194,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
                     num_colors = 64
                     effort_lossy = st.slider("Effort / Method", 1, 6, 6, key="comp_webp_lossy_effort")
 
-            # Execute lossy compression
             comp_result = compress_image_stream(
                 image=target_image,
                 mode="lossy",
@@ -223,9 +205,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
                 num_palette_colors=num_colors
             )
 
-        # -------------------------------------------------------------
-        # LIVE TELEMETRY STATS GRID
-        # -------------------------------------------------------------
         orig_sz_str = _format_bytes(comp_result["orig_size_bytes"])
         comp_sz_str = _format_bytes(comp_result["compressed_size_bytes"])
         saved_pct = comp_result["space_saved_percent"]
@@ -267,9 +246,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
             unsafe_allow_html=True
         )
 
-        # -------------------------------------------------------------
-        # VISUAL COMPARISON & DIRECT DOWNLOAD
-        # -------------------------------------------------------------
         preview_col1, preview_col2 = st.columns(2)
         with preview_col1:
             st.markdown(
@@ -286,7 +262,6 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, m
             )
             st.image(reconstructed, width="stretch")
 
-        # Download button
         st.write("")
         dl_col1, dl_col2, dl_col3 = st.columns([1, 2, 1])
         with dl_col2:
