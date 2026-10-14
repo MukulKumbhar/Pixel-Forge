@@ -40,6 +40,15 @@ def calculate_ssim(img_orig: np.ndarray, img_proc: np.ndarray) -> float:
         o = cv2.cvtColor(o, cv2.COLOR_RGB2GRAY)
         p = cv2.cvtColor(p, cv2.COLOR_RGB2GRAY)
 
+    # For massive ultra-high-res images (>2048px), downsample to 2048px for sub-second SSIM calculation
+    h_max = max(o.shape[:2])
+    if h_max > 2048:
+        scale_ssim = 2048.0 / h_max
+        new_w = max(16, int(o.shape[1] * scale_ssim))
+        new_h = max(16, int(o.shape[0] * scale_ssim))
+        o = cv2.resize(o, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        p = cv2.resize(p, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
     c1 = (0.01 * 255) ** 2
     c2 = (0.03 * 255) ** 2
 

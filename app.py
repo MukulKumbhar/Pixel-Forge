@@ -9,6 +9,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
+Image.MAX_IMAGE_PIXELS = None  # Eliminate PIL decompression bomb cap for large 200MB+ images
 import streamlit as st
 
 # Core imports
@@ -112,21 +113,71 @@ def main():
 
     with top_col2:
         uploaded_file = st.file_uploader(
-            "Or Upload Custom Image",
-            type=["png", "jpg", "jpeg", "bmp", "tiff"],
-            help="Upload your own photographic or medical image to test through the pipeline."
+            "Or Upload Custom Image (Supports up to 1,000 MB)",
+            type=["png", "jpg", "jpeg", "bmp", "tiff", "tif", "webp"],
+            help="High-capacity upload buffer supports multi-megabyte photographic, medical, and RAW scans (up to 1,000 MB)."
         )
 
-    # Resolve active base frame
+    # High-Performance Cached Ingestion for Large Images
     if uploaded_file is not None:
-        try:
-            pil_img = Image.open(uploaded_file).convert("RGB")
-            raw_base_image = np.array(pil_img, dtype=np.uint8)
-        except Exception as e:
-            st.error(f"Error loading uploaded image: {e}")
-            raw_base_image = load_image_asset(selected_sample)
+        file_sig = f"{uploaded_file.name}_{uploaded_file.size}"
+        if st.session_state.get("_cached_upload_sig") == file_sig and st.session_state.get("_master_raw_image") is not None:
+            master_raw_image = st.session_state["_master_raw_image"]
+        else:
+            with st.spinner(f"⚡ Ingesting & caching high-resolution master image ({uploaded_file.size / (1024*1024):.1f} MB)..."):
+                try:
+                    Image.MAX_IMAGE_PIXELS = None
+                    file_bytes = uploaded_file.getvalue()
+                    pil_img = Image.open(io.BytesIO(file_bytes))
+                    if pil_img.mode in ("RGBA", "LA"):
+                        master_raw_image = np.array(pil_img.convert("RGBA"), dtype=np.uint8)
+                    else:
+                        master_raw_image = np.array(pil_img.convert("RGB"), dtype=np.uint8)
+
+                    st.session_state["_cached_upload_sig"] = file_sig
+                    st.session_state["_master_raw_image"] = master_raw_image
+                    st.session_state["_proxy_raw_image"] = None  # Invalidate proxy cache
+                    import gc
+                    gc.collect()
+                except Exception as e:
+                    st.error(f"Error loading uploaded image: {e}")
+                    master_raw_image = load_image_asset(selected_sample)
     else:
-        raw_base_image = load_image_asset(selected_sample)
+        master_raw_image = load_image_asset(selected_sample)
+        if st.session_state.get("_cached_upload_sig") not in [None, "sample"]:
+            st.session_state["_cached_upload_sig"] = "sample"
+            st.session_state["_master_raw_image"] = master_raw_image
+            st.session_state["_proxy_raw_image"] = None
+
+    # Studio Viewport Engine: Resolve active working frame
+    master_h, master_w = master_raw_image.shape[:2]
+    is_ultra_high_res = max(master_h, master_w) > 2048
+
+    if is_ultra_high_res:
+        if st.session_state.get("_proxy_raw_image") is None or st.session_state.get("_proxy_raw_image").shape[0] == 0:
+            scale_factor = 2048.0 / max(master_h, master_w)
+            target_pw = max(16, int(master_w * scale_factor))
+            target_ph = max(16, int(master_h * scale_factor))
+            proxy_img = cv2.resize(master_raw_image, (target_pw, target_ph), interpolation=cv2.INTER_AREA)
+            st.session_state["_proxy_raw_image"] = proxy_img
+        raw_base_image = st.session_state["_proxy_raw_image"]
+
+        st.markdown(
+            f"""
+            <div style="background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 8px; padding: 6px 14px; margin-top: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="color: #818cf8; font-weight: 700; font-size: 0.85rem;">⚡ Studio High-Performance Engine:</span>
+                    <span style="color: #cbd5e1; font-size: 0.82rem; margin-left: 6px;">
+                        Master Buffer: <b>{master_w} × {master_h} px</b> | Interactive Viewport: <b>{raw_base_image.shape[1]} × {raw_base_image.shape[0]} px</b>
+                    </span>
+                </div>
+                <span class="badge badge-unit">100% Full-Resolution Preserved on Export</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        raw_base_image = master_raw_image
 
     with top_col3:
         st.markdown("<div style='font-size: 0.82rem; font-weight: 700; color: #94a3b8; margin-bottom: 7px;'>PIPELINE HISTORY</div>", unsafe_allow_html=True)
@@ -286,10 +337,10 @@ def main():
         render_parameter_drawer(st.session_state.get("selected_layer_id"))
 
     # Expander 3: Vector Multi-Shape Cropper Studio
-    render_cropper_dock(raw_base_image, processed_image)
+    render_cropper_dock(raw_base_image, processed_image, master_raw_image)
 
     # Expander 4: Pro Image Compressor (Lossless & Deep Lossy with Quality Slider)
-    render_compressor_dock(raw_base_image, processed_image)
+    render_compressor_dock(raw_base_image, processed_image, master_raw_image)
 
     # Expander 5: Comparative Image Histograms (Input vs Output)
     render_histogram_dock(raw_base_image, processed_image)
@@ -300,22 +351,42 @@ def main():
 
         with exp_col1:
             st.markdown("<div style='font-size: 0.9rem; font-weight: 700; color: #f8fafc; margin-bottom: 6px;'>📸 Export Processed Image</div>", unsafe_allow_html=True)
-            is_rgba = (processed_image.ndim == 3 and processed_image.shape[2] == 4)
-            is_rgb = (processed_image.ndim == 3 and processed_image.shape[2] == 3)
-            if is_rgba:
-                out_bgr = cv2.cvtColor(processed_image, cv2.COLOR_RGBA2BGRA)
-            elif is_rgb:
-                out_bgr = cv2.cvtColor(processed_image, cv2.COLOR_RGB2BGR)
+            export_mode = st.radio(
+                "Export Quality Mode",
+                options=["Full-Resolution Master (100% Original Quality)", "Active Viewport Canvas"],
+                horizontal=True,
+                key="export_res_choice"
+            )
+
+            # Determine frame to export
+            if export_mode == "Full-Resolution Master (100% Original Quality)" and is_ultra_high_res:
+                if len(st.session_state.get("active_layer_stack", [])) > 0:
+                    with st.spinner(f"⚡ Rendering full-resolution master ({master_w} × {master_h} px) through active pipeline..."):
+                        master_res = execute_pipeline(master_raw_image, st.session_state.active_layer_stack)
+                        final_export = master_res.output_image
+                else:
+                    final_export = master_raw_image
             else:
-                out_bgr = processed_image
+                final_export = processed_image
+
+            is_rgba = (final_export.ndim == 3 and final_export.shape[2] == 4)
+            is_rgb = (final_export.ndim == 3 and final_export.shape[2] == 3)
+            if is_rgba:
+                out_bgr = cv2.cvtColor(final_export, cv2.COLOR_RGBA2BGRA)
+            elif is_rgb:
+                out_bgr = cv2.cvtColor(final_export, cv2.COLOR_RGB2BGR)
+            else:
+                out_bgr = final_export
+
             success, encoded_img = cv2.imencode('.png', out_bgr)
             if success:
                 st.download_button(
-                    label="⬇️ Download Full-Res PNG",
+                    label=f"⬇️ Download Full-Res PNG ({final_export.shape[1]} × {final_export.shape[0]} px)",
                     data=encoded_img.tobytes(),
                     file_name="pixel_forge_export.png",
                     mime="image/png",
-                    use_container_width=True
+                    use_container_width=True,
+                    type="primary"
                 )
 
         with exp_col2:

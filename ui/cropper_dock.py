@@ -16,12 +16,13 @@ from algorithms.geometry import vector_shape_crop
 from core.state_manager import add_layer_to_stack
 
 
-def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray):
+def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray, master_image: Optional[np.ndarray] = None):
     """
     Renders the Vector Multi-Shape Cropper Studio inside a collapsible expander.
     Enables users to crop images using analytical vector shapes:
     Circle, Square, Rectangle, Ellipse, Triangle, Diamond, Hexagon, Octagon,
     Star, Heart, Regular N-gon, with subpixel anti-aliasing and RGBA transparency.
+    Supports cropping pristine full-resolution master images (up to 1,000 MB).
     """
     with st.expander("✂️ **Vector Shape Cropper Studio (Circle, Square, Star, Heart & Custom)**", expanded=False):
         st.markdown(
@@ -45,13 +46,22 @@ def render_cropper_dock(raw_image: np.ndarray, processed_image: np.ndarray):
         # Source Frame Selection & Quick Presets
         src_col, preset_col = st.columns([1, 2.2])
         with src_col:
+            crop_src_options = ["Current Processed Output", "Original Raw Frame"]
+            if master_image is not None and master_image.shape[:2] != raw_image.shape[:2]:
+                crop_src_options.insert(0, f"Full-Resolution Master Frame ({master_image.shape[1]} × {master_image.shape[0]} px)")
+
             crop_source = st.radio(
                 "Source Image for Cropping",
-                options=["Current Processed Output", "Original Raw Frame"],
+                options=crop_src_options,
                 horizontal=True,
                 key="cropper_source_radio"
             )
-            base_img = processed_image if crop_source == "Current Processed Output" else raw_image
+            if "Full-Resolution Master" in crop_source:
+                base_img = master_image
+            elif crop_source == "Current Processed Output":
+                base_img = processed_image
+            else:
+                base_img = raw_image
 
         with preset_col:
             st.markdown("<div style='font-size: 0.82rem; font-weight: 700; color: #cbd5e1; margin-bottom: 4px;'>QUICK SHAPE PRESETS:</div>", unsafe_allow_html=True)

@@ -24,12 +24,13 @@ def _format_bytes(num_bytes: int) -> str:
         return f"{num_bytes / (1024.0 * 1024.0):.2f} MB"
 
 
-def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray):
+def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray, master_image: Optional[np.ndarray] = None):
     """
     Renders the Pro Image Compressor Studio inside a collapsible, high-end expander.
     Offers two distinct compression modes:
     1. Lossless: 100% bit-exact or lossless encoding with zero quality degradation.
     2. Deep Lossy: Dynamic quality slider, modern codecs, dimension scaling, and live telemetry.
+    Supports compressing pristine full-resolution master images (up to 1,000 MB).
     """
     with st.expander("🗜️ **Pro Image Compressor (Lossless & Deep Lossy with Quality Slider)**", expanded=False):
         st.markdown(
@@ -53,13 +54,22 @@ def render_compressor_dock(raw_image: np.ndarray, processed_image: np.ndarray):
         # Source frame selection
         c_src, c_mode = st.columns([1.1, 1.9])
         with c_src:
+            src_options = ["Current Processed Output", "Original Raw Frame"]
+            if master_image is not None and master_image.shape[:2] != raw_image.shape[:2]:
+                src_options.insert(0, f"Full-Resolution Master Frame ({master_image.shape[1]} × {master_image.shape[0]} px)")
+
             source_choice = st.radio(
                 "Image Source",
-                options=["Current Processed Output", "Original Raw Frame"],
+                options=src_options,
                 horizontal=True,
                 key="compressor_src_radio"
             )
-            target_image = processed_image if source_choice == "Current Processed Output" else raw_image
+            if "Full-Resolution Master" in source_choice:
+                target_image = master_image
+            elif source_choice == "Current Processed Output":
+                target_image = processed_image
+            else:
+                target_image = raw_image
 
         with c_mode:
             compression_mode = st.radio(

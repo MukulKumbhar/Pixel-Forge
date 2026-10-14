@@ -184,3 +184,23 @@ def test_academic_paletted_quantization(sample_rgb_image):
     quantized = paletted_color_quantization(sample_rgb_image, num_colors=16)
     assert quantized.shape == sample_rgb_image.shape
     assert quantized.dtype == np.uint8
+
+
+def test_large_image_handling():
+    """Verifies that large 25MB+ / 3000x3000px image arrays process without failure."""
+    import cv2
+    large_img = np.zeros((3000, 3000, 3), dtype=np.uint8)
+    large_img[:1500, :] = 200
+    large_img[1500:, :] = 80
+
+    # Test proxy downsampling
+    scale = 2048.0 / max(large_img.shape[:2])
+    proxy = cv2.resize(large_img, (int(3000 * scale), int(3000 * scale)), interpolation=cv2.INTER_AREA)
+    assert max(proxy.shape[:2]) == 2048
+
+    # Test lossless compression on large image
+    comp_res = compress_image_stream(large_img, mode="lossless", format_choice="webp", effort=4)
+    assert comp_res["compressed_bytes"] is not None
+    assert comp_res["space_saved_percent"] > 0
+    assert comp_res["mse"] == 0.0
+

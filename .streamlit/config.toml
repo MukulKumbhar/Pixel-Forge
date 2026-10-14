@@ -1,0 +1,18 @@
+[server]
+# Allow large photographic and medical image uploads up to 1000 MB (1 GB)
+maxUploadSize = 1000
+# Allow large WebSocket frames up to 1000 MB to prevent upload disconnects and infinite spinners
+maxMessageSize = 1000
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#6366f1"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#161b22"
+textColor = "#f8fafc"
+font = "sans serif"
